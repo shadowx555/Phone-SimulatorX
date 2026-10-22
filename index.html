@@ -564,7 +564,7 @@ const CATALOG = [
     cat:'Продуктивность', subscription:true,
     plans:[{id:'month',name:'Месяц',price:2.99},{id:'year',name:'Год',price:29.99,best:true}],
     desc:'Облачное хранилище 1TB для всех ваших файлов.' },
-  { id:'vpn-shield', name:'VPN Shield', icon:'🛡️', bg:'linear-gradient(135deg,#00b894,#00cec9)',
+  { id:'vpn-shield', name:'VPN', icon:'🛡️', bg:'linear-gradient(135deg,#00b894,#00cec9)',
     cat:'Утилиты', subscription:true,
     plans:[{id:'week',name:'Неделя',price:1.99},{id:'month',name:'Месяц',price:4.99},{id:'year',name:'Год',price:39.99,best:true}],
     desc:'Быстрый VPN с серверами в 60 странах.' }
@@ -2014,7 +2014,7 @@ let vpnOn=false;
 function renderVpn(){
   return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
     <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
-      <div class="title">VPN Shield</div><div class="app-actions"></div></div>
+      <div class="title">VPN</div><div class="app-actions"></div></div>
     <div class="app-content" style="padding:40px 24px;display:flex;flex-direction:column;align-items:center">
       <div style="font-size:80px;margin-bottom:20px;transition:all .5s;${vpnOn?'filter:drop-shadow(0 0 20px #30d158)':''}">🛡️</div>
       <div style="font-size:24px;font-weight:700;margin-bottom:8px">${vpnOn?'Защищено':'Не защищено'}</div>
