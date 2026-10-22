@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Simulator</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,sans-serif;
+  background:radial-gradient(circle at 30% 20%,#1e3a5f 0%,#0f172a 50%,#000 100%);
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  overflow:hidden;color:#fff;-webkit-font-smoothing:antialiased}
+.model-bar{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:9999;
+  background:rgba(255,255,255,.08);backdrop-filter:blur(20px);padding:10px 18px;border-radius:30px;
+  display:flex;gap:12px;align-items:center;border:1px solid rgba(255,255,255,.15);font-size:14px}
+.model-bar select{padding:7px 14px;border-radius:20px;border:none;background:rgba(255,255,255,.15);
+  color:#fff;font-size:14px;cursor:pointer;outline:none}
+.model-bar select option{background:#1a1a2e;color:#fff}
+.phone{width:390px;height:844px;background:#000;border-radius:56px;padding:12px;position:relative;
+  box-shadow:0 30px 80px rgba(0,0,0,.8),inset 0 0 0 3px #1a1a1a,0 0 0 2px #000;
+  transition:all .5s cubic-bezier(.4,0,.2,1);flex-shrink:0}
+.phone.android{border-radius:42px;padding:10px}
+.phone::before{content:'';position:absolute;top:20px;left:50%;transform:translateX(-50%);
+  width:126px;height:37px;background:#000;border-radius:20px;z-index:5000;pointer-events:none;transition:all .3s}
+.phone.android::before{display:none}
+.phone.android::after{content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  width:10px;height:10px;background:#0a0a0a;border-radius:50%;z-index:5000;
+  box-shadow:inset 0 0 4px rgba(255,255,255,.15)}
+.screen{width:100%;height:100%;border-radius:46px;overflow:hidden;position:relative;background:#000}
+.phone.android .screen{border-radius:32px}
+.wallpaper{position:absolute;inset:0;background:linear-gradient(135deg,#2b1055 0%,#7597de 25%,#ff9a9e 50%,#fecfef 75%,#a1c4fd 100%);
+  background-size:200% 200%;animation:wallShift 20s ease infinite;z-index:0}
+.phone.android .wallpaper{background:linear-gradient(135deg,#134e5e 0%,#71b280 50%,#2c3e50 100%);background-size:200% 200%}
+@keyframes wallShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.status-bar{position:absolute;top:0;left:0;right:0;height:54px;display:flex;justify-content:space-between;
+  align-items:center;padding:0 30px;z-index:4000;color:#fff;font-size:15px;font-weight:600;
+  pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.2)}
+.status-bar .right{display:flex;gap:6px;align-items:center;font-size:13px}
+.signal-bars{display:inline-flex;gap:1.5px;align-items:flex-end;height:10px}
+.signal-bars span{width:2.5px;background:#fff;border-radius:1px}
+.signal-bars span:nth-child(1){height:3px}.signal-bars span:nth-child(2){height:5px}
+.signal-bars span:nth-child(3){height:7px}.signal-bars span:nth-child(4){height:10px}
+.battery{width:22px;height:11px;border:1.5px solid #fff;border-radius:3px;position:relative;padding:1.5px}
+.battery::after{content:'';position:absolute;right:-3.5px;top:50%;transform:translateY(-50%);
+  width:2px;height:5px;background:#fff;border-radius:0 1px 1px 0}
+.battery-fill{height:100%;background:#fff;border-radius:1px;width:80%}
+.lock-screen{position:absolute;inset:0;z-index:3000;display:flex;flex-direction:column;
+  align-items:center;padding-top:100px;color:#fff;transition:all .5s cubic-bezier(.4,0,.2,1);
+  cursor:pointer;user-select:none}
+.lock-screen.unlocked{transform:translateY(-100%);opacity:0;pointer-events:none}
+.lock-date{font-size:22px;font-weight:500;opacity:.9;margin-bottom:6px;text-shadow:0 1px 3px rgba(0,0,0,.3)}
+.lock-time{font-size:96px;font-weight:200;line-height:1;letter-spacing:-4px;margin-bottom:4px;
+  text-shadow:0 2px 10px rgba(0,0,0,.25)}
+.lock-widgets{margin-top:40px;display:flex;gap:12px;opacity:.9}
+.lock-widget{background:rgba(255,255,255,.15);backdrop-filter:blur(15px);padding:12px 18px;
+  border-radius:18px;font-size:13px;border:1px solid rgba(255,255,255,.15);
+  display:flex;flex-direction:column;align-items:center;gap:4px;min-width:100px}
+.lock-widget .big{font-size:20px;font-weight:600}
+.lock-notif{margin-top:20px;background:rgba(255,255,255,.15);backdrop-filter:blur(15px);
+  padding:12px 16px;border-radius:16px;max-width:280px;font-size:13px;
+  border:1px solid rgba(255,255,255,.15);animation:slideUp .6s ease}
+.lock-notif .notif-title{font-weight:600;margin-bottom:2px}
+.lock-notif .notif-body{opacity:.85;font-size:12px}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.unlock-hint{position:absolute;bottom:60px;font-size:14px;opacity:.7;
+  animation:pulseHint 2s ease-in-out infinite}
+@keyframes pulseHint{0%,100%{opacity:.4;transform:translateY(0)}50%{opacity:.9;transform:translateY(-6px)}}
+.unlock-arrow{font-size:24px;margin-top:8px;display:block}
+.home-screen{position:absolute;inset:0;z-index:100;padding:60px 20px 20px;
+  display:flex;flex-direction:column;opacity:0;pointer-events:none;
+  transition:opacity .4s ease,transform .4s ease;transform:scale(1.1)}
+.home-screen.active{opacity:1;pointer-events:auto;transform:scale(1)}
+.apps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px 8px;align-content:start}
+.app-icon{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;
+  transition:transform .15s ease;user-select:none}
+.app-icon:active{transform:scale(.85)}
+.app-icon .icon-wrap{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;
+  justify-content:center;font-size:30px;box-shadow:0 4px 12px rgba(0,0,0,.25);
+  position:relative;overflow:hidden}
+.app-icon .icon-wrap::after{content:'';position:absolute;inset:0;border-radius:16px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25);pointer-events:none}
+.app-icon .label{font-size:11px;color:#fff;text-align:center;line-height:1.2;
+  text-shadow:0 1px 2px rgba(0,0,0,.5);max-width:70px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.dock{position:absolute;bottom:28px;left:16px;right:16px;background:rgba(255,255,255,.18);
+  backdrop-filter:blur(25px);border-radius:28px;padding:12px 8px;display:flex;
+  justify-content:space-around;border:1px solid rgba(255,255,255,.2)}
+.dock .app-icon .label{display:none}
+.app-view{position:absolute;inset:0;z-index:200;display:none;border-radius:46px;
+  overflow:hidden;background:#000;will-change:transform,opacity}
+.phone.android .app-view{border-radius:32px}
+.app-view.active{display:flex;flex-direction:column}
+.app-header{height:54px;flex-shrink:0;display:flex;align-items:center;padding:0 16px;
+  background:rgba(0,0,0,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08);
+  position:relative;z-index:10}
+.app-header .title{flex:1;text-align:center;font-weight:600;font-size:17px}
+.app-back{background:none;border:none;color:#0a84ff;font-size:17px;font-weight:400;
+  cursor:pointer;padding:8px 4px;display:flex;align-items:center;gap:2px}
+.app-back:active{opacity:.6}
+.app-actions{min-width:60px;text-align:right;color:#0a84ff;font-size:15px;font-weight:500}
+.app-content{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  position:relative;background:#000}
+.app-content::-webkit-scrollbar{width:0}
+.home-indicator{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  width:140px;height:5px;background:rgba(255,255,255,.9);border-radius:3px;z-index:4500;
+  cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.home-indicator:active{transform:translateX(-50%) scaleX(.85);opacity:.7}
+
+/* ===== ANDROID NAV ===== */
+.android-nav{display:none;position:absolute;bottom:0;left:0;right:0;height:48px;
+  background:linear-gradient(180deg,rgba(0,0,0,0.05) 0%,rgba(0,0,0,0.55) 100%);
+  z-index:4500;justify-content:space-around;align-items:center;padding:0 50px}
+.phone.android .android-nav{display:flex}
+.phone.android .home-indicator{display:none}
+.android-nav button{background:none;border:none;color:rgba(255,255,255,0.85);font-size:20px;
+  padding:8px 24px;cursor:pointer;transition:all .15s;line-height:1;
+  font-family:system-ui,sans-serif;border-radius:8px}
+.android-nav button:active{color:#fff;transform:scale(0.85);background:rgba(255,255,255,0.15)}
+
+/* ===== ANDROID HOME SCREEN ===== */
+.phone.android .apps-grid{grid-template-columns:repeat(5,1fr);gap:18px 4px;padding-top:16px}
+.phone.android .app-icon .icon-wrap{width:52px;height:52px;font-size:26px;border-radius:50%}
+.phone.android .app-icon .icon-wrap::after{border-radius:50%}
+.phone.android .app-icon .label{font-size:10px;max-width:60px}
+.phone.android .dock{background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);
+  border-radius:24px;bottom:60px;backdrop-filter:blur(15px);padding:10px 6px}
+.phone.android .dock .app-icon .icon-wrap{width:50px;height:50px;font-size:24px;border-radius:50%}
+
+/* ===== ANDROID LOCK SCREEN ===== */
+.phone.android .lock-screen{padding-top:90px}
+.phone.android .lock-time{font-size:72px;font-weight:300;letter-spacing:-1px}
+.phone.android .lock-date{font-size:17px;font-weight:400}
+.phone.android .lock-widget{border-radius:24px}
+.phone.android .lock-notif{border-radius:20px}
+
+/* ===== ANDROID STATUS BAR ===== */
+.phone.android .status-bar{padding:0 20px}
+
+/* ===== APP STORE ===== */
+.as-header{padding:20px 20px 12px;background:linear-gradient(180deg,#1c1c1e 0%,#000 100%);
+  border-bottom:1px solid rgba(255,255,255,.08)}
+.as-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.as-title{font-size:32px;font-weight:700;letter-spacing:-.5px}
+.as-balance{background:rgba(255,255,255,.1);padding:6px 12px;border-radius:20px;font-size:13px;color:#8e8e93}
+.as-search{background:rgba(255,255,255,.1);border-radius:10px;padding:10px 14px;
+  display:flex;align-items:center;gap:8px;color:#8e8e93;font-size:15px}
+.as-tabs{display:flex;gap:20px;padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.08);
+  overflow-x:auto;scrollbar-width:none;background:#000}
+.as-tabs::-webkit-scrollbar{display:none}
+.as-tab{padding:6px 0;font-size:15px;color:#8e8e93;cursor:pointer;white-space:nowrap;
+  border-bottom:2px solid transparent;transition:all .2s;font-weight:500}
+.as-tab.active{color:#fff;border-bottom-color:#0a84ff}
+.as-hero{margin:20px;border-radius:20px;overflow:hidden;padding:24px;position:relative;
+  cursor:pointer;min-height:160px;display:flex;flex-direction:column;justify-content:flex-end}
+.as-hero h2{font-size:24px;font-weight:700;margin-bottom:4px;line-height:1.2}
+.as-hero p{font-size:14px;opacity:.85;margin-bottom:12px}
+.as-hero .hero-badge{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.2);
+  backdrop-filter:blur(10px);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;
+  letter-spacing:.5px;text-transform:uppercase}
+.as-hero .hero-icon{position:absolute;right:20px;bottom:20px;font-size:80px;opacity:.9}
+.as-section{padding:0 20px 20px}
+.as-section-title{font-size:20px;font-weight:700;margin-bottom:14px;letter-spacing:-.3px}
+.as-app-row{display:flex;align-items:center;gap:12px;padding:10px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);cursor:pointer}
+.as-app-row:last-child{border-bottom:none}
+.as-app-row:active{opacity:.7}
+.as-app-row .app-icon-sm{width:60px;height:60px;border-radius:14px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.as-app-row .app-info{flex:1;min-width:0}
+.as-app-row .app-name{font-size:15px;font-weight:600;margin-bottom:2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.as-app-row .app-cat{font-size:12px;color:#8e8e93;margin-bottom:2px}
+.as-app-row .app-price{font-size:12px;color:#8e8e93}
+.as-buy-btn{background:#0a84ff;color:#fff;border:none;border-radius:20px;padding:7px 18px;
+  font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;flex-shrink:0}
+.as-buy-btn:active{transform:scale(.95);background:#0060df}
+.as-buy-btn.purchased{background:#30d158;pointer-events:none}
+.as-buy-btn.loading{background:rgba(255,255,255,.15);pointer-events:none;padding:7px 12px}
+.as-detail{padding:20px}
+.as-detail-top{display:flex;gap:16px;margin-bottom:20px}
+.as-detail-icon{width:100px;height:100px;border-radius:22px;display:flex;align-items:center;
+  justify-content:center;font-size:52px;box-shadow:0 8px 20px rgba(0,0,0,.4);flex-shrink:0}
+.as-detail-meta{flex:1;display:flex;flex-direction:column;justify-content:center;min-width:0}
+.as-detail-name{font-size:22px;font-weight:700;margin-bottom:4px;line-height:1.2}
+.as-detail-cat{font-size:13px;color:#8e8e93;margin-bottom:10px}
+.as-detail-stats{display:flex;gap:16px;font-size:11px;color:#8e8e93;text-transform:uppercase;
+  letter-spacing:.5px;font-weight:600}
+.as-detail-stats div{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.as-detail-stats div span{font-size:16px;color:#fff;text-transform:none;letter-spacing:0;font-weight:500}
+.as-buy-btn-large{background:#0a84ff;color:#fff;border:none;border-radius:14px;padding:14px;
+  font-size:17px;font-weight:600;cursor:pointer;width:100%;margin-bottom:20px;
+  transition:all .2s;position:relative;overflow:hidden}
+.as-buy-btn-large:active{transform:scale(.98)}
+.as-buy-btn-large.purchased{background:#30d158;pointer-events:none}
+.as-buy-btn-large.loading{background:rgba(255,255,255,.15);pointer-events:none}
+.as-buy-btn-large .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+  display:none;margin:0 auto}
+.as-buy-btn-large.loading .spinner{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.as-description{font-size:14px;line-height:1.5;color:rgba(255,255,255,.85);margin-bottom:20px}
+.sub-modal{position:absolute;inset:0;background:rgba(0,0,0,.7);z-index:300;display:none;
+  align-items:flex-end;backdrop-filter:blur(8px)}
+.sub-modal.active{display:flex}
+.sub-modal-inner{background:#1c1c1e;border-radius:24px 24px 46px 46px;padding:24px;width:100%;
+  animation:slideFromBottom .3s cubic-bezier(.4,0,.2,1)}
+@keyframes slideFromBottom{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sub-modal h3{font-size:22px;font-weight:700;margin-bottom:6px}
+.sub-modal .sub-desc{font-size:13px;color:#8e8e93;margin-bottom:18px}
+.sub-plan{display:flex;align-items:center;padding:14px 16px;background:rgba(255,255,255,.06);
+  border-radius:14px;margin-bottom:10px;cursor:pointer;border:2px solid transparent;transition:all .2s}
+.sub-plan.selected{border-color:#0a84ff;background:rgba(10,132,255,.1)}
+.sub-plan .radio{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.3);
+  margin-right:14px;flex-shrink:0;position:relative;transition:all .2s}
+.sub-plan.selected .radio{border-color:#0a84ff;background:#0a84ff}
+.sub-plan.selected .radio::after{content:'';position:absolute;inset:4px;background:#fff;border-radius:50%}
+.sub-plan-info{flex:1}
+.sub-plan-name{font-size:15px;font-weight:600;margin-bottom:2px}
+.sub-plan-price{font-size:13px;color:#8e8e93}
+.sub-plan .best-badge{background:#30d158;color:#fff;font-size:10px;font-weight:700;
+  padding:3px 8px;border-radius:8px;text-transform:uppercase;letter-spacing:.5px}
+.sub-actions{display:flex;gap:10px;margin-top:16px}
+.sub-actions button{flex:1;padding:14px;border-radius:14px;border:none;font-size:16px;
+  font-weight:600;cursor:pointer;transition:all .2s}
+.sub-actions .cancel{background:rgba(255,255,255,.1);color:#fff}
+.sub-actions .confirm{background:#0a84ff;color:#fff}
+.sub-actions button:active{transform:scale(.97)}
+
+/* ===== CALCULATOR (fixed) ===== */
+.calc-btn{aspect-ratio:1;border-radius:50%;border:none;font-size:26px;font-weight:400;
+  cursor:pointer;transition:filter .1s,transform .1s;color:#fff;background:#333;
+  user-select:none;min-width:0;min-height:0;display:flex;align-items:center;
+  justify-content:center;padding:0;font-family:inherit}
+.calc-btn:active{filter:brightness(1.4);transform:scale(.95)}
+.calc-btn.op{background:#ff9500;font-size:30px}
+.calc-btn.op.active{background:#fff;color:#ff9500}
+.calc-btn.fn{background:#a5a5a5;color:#000}
+.calc-btn.zero{grid-column:span 2;border-radius:50px;justify-content:flex-start;
+  padding-left:26px;aspect-ratio:auto}
+
+.notes-list{padding:16px 20px}
+.note-item{background:rgba(255,255,255,.06);border-radius:14px;padding:14px 16px;margin-bottom:10px;
+  cursor:pointer;transition:all .15s;position:relative}
+.note-item:active{transform:scale(.98);background:rgba(255,255,255,.1)}
+.note-item h4{font-size:16px;font-weight:600;margin-bottom:4px}
+.note-item p{font-size:13px;color:#8e8e93;line-height:1.4;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-height:36px}
+.note-item .note-date{font-size:11px;color:#636366;margin-top:6px}
+.note-item .delete-btn{position:absolute;top:10px;right:10px;background:rgba(255,59,48,.2);
+  color:#ff3b30;border:none;width:24px;height:24px;border-radius:50%;font-size:14px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
+.empty-state{text-align:center;padding:60px 20px;color:#636366;font-size:15px}
+.empty-state .empty-icon{font-size:64px;margin-bottom:16px;opacity:.5}
+.note-editor{padding:20px;display:flex;flex-direction:column;height:100%}
+.note-editor input,.note-editor textarea{background:rgba(255,255,255,.06);border:none;color:#fff;
+  padding:14px 16px;border-radius:12px;font-size:15px;font-family:inherit;outline:none;margin-bottom:10px}
+.note-editor input{font-size:18px;font-weight:600}
+.note-editor textarea{flex:1;resize:none;font-size:15px;line-height:1.5}
+.note-editor .btn-save{background:#0a84ff;color:#fff;border:none;padding:14px;
+  border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;margin-top:10px}
+.music{padding:24px 20px;display:flex;flex-direction:column;align-items:center;height:100%;
+  background:linear-gradient(180deg,#1c1c1e 0%,#000 100%);overflow-y:auto}
+.music-art{width:280px;height:280px;border-radius:20px;background:linear-gradient(135deg,#fc3c44,#ff9500);
+  display:flex;align-items:center;justify-content:center;font-size:120px;margin:10px 0 24px;
+  box-shadow:0 20px 50px rgba(252,60,68,.4);transition:transform .3s}
+.music-art.playing{animation:musicPulse 2s ease-in-out infinite}
+@keyframes musicPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
+.music-title{font-size:22px;font-weight:700;margin-bottom:4px;text-align:center}
+.music-artist{font-size:15px;color:#8e8e93;margin-bottom:24px}
+.music-progress{width:100%;margin-bottom:6px}
+.music-progress-bar{height:4px;background:rgba(255,255,255,.2);border-radius:2px;overflow:hidden}
+.music-progress-fill{height:100%;background:#fff;width:0%;border-radius:2px;transition:width .3s linear}
+.music-times{display:flex;justify-content:space-between;font-size:11px;color:#8e8e93;margin-top:4px}
+.music-controls{display:flex;gap:30px;align-items:center;margin:20px 0}
+.music-controls button{background:none;border:none;color:#fff;font-size:32px;cursor:pointer;padding:8px;transition:all .15s}
+.music-controls button:active{transform:scale(.9)}
+.music-controls .play-btn{font-size:52px}
+.music-playlist{width:100%;margin-top:30px}
+.music-playlist h4{font-size:16px;font-weight:600;margin-bottom:12px;padding-left:4px}
+.music-track{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:all .15s}
+.music-track:active,.music-track.active{background:rgba(255,255,255,.08)}
+.music-track .track-num{font-size:13px;color:#8e8e93;width:20px;text-align:center}
+.music-track.active .track-num{color:#fc3c44}
+.music-track .track-info{flex:1}
+.music-track .track-name{font-size:14px;font-weight:500;margin-bottom:2px}
+.music-track .track-artist{font-size:12px;color:#8e8e93}
+.music-track .playing-icon{color:#fc3c44;font-size:14px}
+.camera{background:#000;height:100%;display:flex;flex-direction:column}
+.camera-view{flex:1;background:linear-gradient(135deg,#2b1055,#7597de);position:relative;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.camera-view::before{content:'📷';font-size:100px;opacity:.5}
+.camera-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.camera-flash.flash{animation:flashAnim .4s ease}
+@keyframes flashAnim{0%{opacity:0}30%{opacity:1}100%{opacity:0}}
+.camera-controls{background:#000;padding:20px 24px;display:flex;justify-content:space-between;align-items:center}
+.camera-btn{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.15);
+  border:none;color:#fff;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.camera-btn:active{transform:scale(.9)}
+.shutter{width:76px;height:76px;border-radius:50%;background:#fff;border:4px solid #fff;
+  box-shadow:inset 0 0 0 4px #000;cursor:pointer;transition:all .1s}
+.shutter:active{transform:scale(.9);background:#eee}
+.photos-grid{padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.photo-tile{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:pointer;transition:all .15s}
+.photo-tile:active{transform:scale(.95)}
+.weather{padding:24px 20px;height:100%;background:linear-gradient(180deg,#4a90e2 0%,#2c5f8f 100%);
+  overflow-y:auto;position:relative}
+.weather-city{font-size:34px;font-weight:300;text-align:center;margin-bottom:4px;text-shadow:0 2px 4px rgba(0,0,0,.2)}
+.weather-temp{font-size:96px;font-weight:100;text-align:center;line-height:1;position:relative;
+  margin-bottom:8px;text-shadow:0 2px 4px rgba(0,0,0,.15)}
+.weather-cond{font-size:20px;text-align:center;margin-bottom:4px;opacity:.95}
+.weather-range{font-size:16px;text-align:center;opacity:.85;margin-bottom:30px}
+.weather-card{background:rgba(255,255,255,.15);backdrop-filter:blur(15px);border-radius:16px;
+  padding:16px;margin-bottom:12px;border:1px solid rgba(255,255,255,.15)}
+.weather-card-title{font-size:11px;font-weight:600;opacity:.8;margin-bottom:12px;
+  text-transform:uppercase;letter-spacing:1px}
+.weather-hours{display:flex;justify-content:space-between;overflow-x:auto}
+.weather-hour{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:50px}
+.weather-hour .h-time{font-size:13px;font-weight:500}
+.weather-hour .h-icon{font-size:22px}
+.weather-hour .h-temp{font-size:15px;font-weight:500}
+.weather-days .day-row{display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid rgba(255,255,255,.1)}
+.weather-days .day-row:last-child{border-bottom:none}
+.weather-days .day-name{width:50px;font-size:14px}
+.weather-days .day-icon{font-size:18px;flex:1;text-align:center}
+.weather-days .day-temp{font-size:14px;font-weight:500}
+.settings{padding:0 0 20px}
+.settings-section{background:#1c1c1e;margin:0 0 20px}
+.settings-group-title{font-size:12px;font-weight:500;color:#8e8e93;text-transform:uppercase;
+  padding:12px 20px 6px;letter-spacing:.3px}
+.settings-row{display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #2c2c2e;
+  cursor:pointer;transition:background .15s}
+.settings-row:last-child{border-bottom:none}
+.settings-row:active{background:#2c2c2e}
+.settings-row .row-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;
+  justify-content:center;font-size:16px;margin-right:12px;flex-shrink:0}
+.settings-row .row-label{flex:1;font-size:16px}
+.settings-row .row-value{font-size:15px;color:#8e8e93;display:flex;align-items:center;gap:4px}
+.settings-row .row-value::after{content:'›';color:#636366;font-size:20px;line-height:1}
+.toast{position:absolute;top:80px;left:50%;transform:translateX(-50%) translateY(-20px);
+  background:rgba(40,40,40,.95);backdrop-filter:blur(20px);color:#fff;padding:12px 20px;
+  border-radius:20px;font-size:14px;font-weight:500;box-shadow:0 10px 30px rgba(0,0,0,.5);
+  opacity:0;transition:all .3s;pointer-events:none;z-index:500;max-width:90%;text-align:center;
+  border:1px solid rgba(255,255,255,.1)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.success{background:rgba(48,209,88,.95)}
+.toast.error{background:rgba(255,59,48,.95)}
+.game-canvas{display:block;width:100%;height:100%;touch-action:none}
+.game-wrap{position:relative;width:100%;height:100%;overflow:hidden;background:#000}
+.game-hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;
+  pointer-events:none;color:#fff;font-weight:700;font-size:16px;text-shadow:0 2px 4px rgba(0,0,0,.6);z-index:10}
+.game-hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.65);color:#fff;padding:8px 16px;border-radius:20px;
+  font-size:13px;pointer-events:none;z-index:10}
+.mc-toolbar{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;background:rgba(0,0,0,.75);padding:6px;border-radius:10px;z-index:20}
+.mc-slot{width:40px;height:40px;border-radius:6px;border:2px solid rgba(255,255,255,.2);
+  display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;
+  transition:all .15s;background:rgba(255,255,255,.05)}
+.mc-slot.active{border-color:#fff;background:rgba(255,255,255,.25)}
+</style>
+</head>
+<body>
+
+<div class="model-bar">
+  <label>Модель:</label>
+  <select id="model-select">
+    <option value="iphone">iPhone 15 Pro</option>
+    <option value="android">Android</option>
+  </select>
+</div>
+
+<div class="phone" id="phone">
+  <div class="screen" id="screen">
+    <div class="wallpaper"></div>
+    <div class="status-bar">
+      <span id="status-time">9:41</span>
+      <span class="right">
+        <span class="signal-bars"><span></span><span></span><span></span><span></span></span>
+        <span>5G</span>
+        <span class="battery"><span class="battery-fill"></span></span>
+      </span>
+    </div>
+    <div class="lock-screen" id="lock-screen">
+      <div class="lock-date" id="lock-date"></div>
+      <div class="lock-time" id="lock-time">9:41</div>
+      <div class="lock-widgets">
+        <div class="lock-widget"><span>⛅</span><span class="big">+18°</span><span>Москва</span></div>
+        <div class="lock-widget"><span>🎵</span><span class="big" style="font-size:14px">Music</span><span>Готово</span></div>
+      </div>
+      <div class="lock-notif">
+        <div class="notif-title">🎮 Новая игра</div>
+        <div class="notif-body">City Rampage доступно в Store</div>
+      </div>
+      <div class="unlock-hint">Свайп вверх для разблокировки<span class="unlock-arrow">↑</span></div>
+    </div>
+    <div class="home-screen" id="home-screen"></div>
+    <div class="app-view" id="app-view"></div>
+    <div class="home-indicator" id="home-indicator"></div>
+    <div class="android-nav" id="android-nav">
+      <button data-nav="back" title="Назад">◁</button>
+      <button data-nav="home" title="Домой">○</button>
+      <button data-nav="recents" title="Недавние">□</button>
+    </div>
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ===== SOUND ENGINE ===== */
+const Sound = {
+  ctx: null,
+  ensure() {
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { return; }
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  tone(freq, dur, type, vol, delay) {
+    if (!this.ctx) this.ensure();
+    if (!this.ctx) return;
+    type = type || 'sine'; vol = vol == null ? 0.12 : vol; delay = delay || 0;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(t); osc.stop(t + dur + 0.05);
+  },
+  tap()      { this.ensure(); this.tone(1200, 0.04, 'sine', 0.05); },
+  unlock()   { this.ensure(); this.tone(880, 0.08, 'sine', 0.1); this.tone(1320, 0.14, 'sine', 0.09, 0.06); },
+  appOpen()  { this.ensure(); this.tone(660, 0.1, 'triangle', 0.07); this.tone(990, 0.14, 'triangle', 0.05, 0.05); },
+  appClose() { this.ensure(); this.tone(990, 0.08, 'triangle', 0.05); this.tone(660, 0.12, 'triangle', 0.07, 0.05); },
+  purchase() {
+    this.ensure();
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => this.tone(f, 0.4, 'sine', 0.11, i * 0.09));
+    this.tone(2093, 0.6, 'sine', 0.04, 0.35);
+  },
+  error()    { this.ensure(); this.tone(300, 0.15, 'sawtooth', 0.07); this.tone(200, 0.25, 'sawtooth', 0.07, 0.1); },
+  shutter()  { this.ensure(); this.tone(150, 0.05, 'square', 0.08); this.tone(800, 0.03, 'square', 0.04, 0.02); }
+};
+
+/* ===== MUSIC PLAYER ===== */
+const NOTE = {
+  'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00,'B5':987.77,
+  'C#5':554.37,'D#5':622.25,'F#5':739.99
+};
+const MusicPlayer = {
+  playing: false, timer: null, noteIdx: 0, currentTrack: null, startTime: 0,
+  start(track) {
+    this.stop();
+    this.currentTrack = track; this.playing = true; this.noteIdx = 0;
+    const interval = 60000 / track.bpm;
+    const playNext = () => {
+      if (!this.playing || !this.currentTrack) return;
+      const n = track.melody[this.noteIdx % track.melody.length];
+      this.noteIdx++;
+      if (n !== '-') {
+        Sound.tone(NOTE[n] || 440, interval/1000 * 1.3, 'triangle', 0.055);
+        Sound.tone((NOTE[n] || 440)/2, interval/1000 * 1.3, 'sine', 0.035);
+      }
+      if (this.noteIdx % 4 === 1) {
+        Sound.tone((NOTE[n] || 440)/4, interval/1000 * 2, 'sine', 0.03);
+      }
+      this.timer = setTimeout(playNext, interval);
+    };
+    playNext();
+  },
+  stop() {
+    this.playing = false;
+    if (this.timer) { clearTimeout(this.timer); this.timer = null; }
+  }
+};
+
+/* ===== STATE ===== */
+const State = {
+  model: 'iphone', locked: true, currentApp: null, balance: 200,
+  purchased: {}, subscriptions: {}, notes: [], installed: []
+};
+try {
+  const raw = localStorage.getItem('phoneSim_v2');
+  if (raw) { const d = JSON.parse(raw); Object.assign(State, d); }
+} catch(e) {}
+const DEFAULT_INSTALLED = ['appstore','calculator','notes','music','camera','photos','weather','settings','flappy'];
+if (!State.installed.length) State.installed = [...DEFAULT_INSTALLED];
+function saveState() {
+  try {
+    localStorage.setItem('phoneSim_v2', JSON.stringify({
+      model: State.model, balance: State.balance, purchased: State.purchased,
+      subscriptions: State.subscriptions, notes: State.notes, installed: State.installed
+    }));
+  } catch(e) {}
+}
+
+/* ===== DATA ===== */
+const APPS = {
+  appstore:   { name:'Store',       icon:'🛍️', bg:'linear-gradient(135deg,#0a84ff,#0066cc)' },
+  calculator: { name:'Калькулятор', icon:'🧮', bg:'linear-gradient(135deg,#ff9500,#ff6b00)' },
+  notes:      { name:'Заметки',     icon:'📝', bg:'linear-gradient(135deg,#ffd60a,#ffaa00)' },
+  music:      { name:'Музыка',      icon:'🎵', bg:'linear-gradient(135deg,#fc3c44,#ff2d55)' },
+  camera:     { name:'Камера',      icon:'📷', bg:'linear-gradient(135deg,#4a4a4a,#1a1a1a)' },
+  photos:     { name:'Фото',        icon:'🖼️', bg:'linear-gradient(135deg,#ff9ff3,#f368e0)' },
+  weather:    { name:'Погода',      icon:'⛅', bg:'linear-gradient(135deg,#74b9ff,#0984e3)' },
+  settings:   { name:'Настройки',   icon:'⚙️', bg:'linear-gradient(135deg,#636e72,#2d3436)' }
+};
+
+const TRACKS = [
+  { name:'Neon City', artist:'Pulse Wave', dur:30, bpm:120,
+    melody:['E5','-','D5','-','B4','-','A4','-','E5','-','D5','-','B4','-','A4','-',
+            'G5','-','F#5','-','E5','-','D5','-','B4','-','A4','-','G4','-','A4','-'] },
+  { name:'Glowing Streets', artist:'The Midnight Echo', dur:30, bpm:171,
+    melody:['F#5','-','E5','-','D5','-','C#5','-','B4','-','C#5','-','D5','-','E5','-',
+            'F#5','-','E5','-','D5','-','C#5','-','B4','-','A4','-','B4','-','C#5','-'] },
+  { name:'Floating High', artist:'Aurora Lane', dur:30, bpm:103,
+    melody:['G4','-','A4','-','B4','-','D5','-','B4','-','A4','-','G4','-','E4','-',
+            'G4','-','A4','-','B4','-','D5','-','E5','-','D5','-','B4','-','A4','-'] },
+  { name:'Hold the Rain', artist:'The Midnight Echo', dur:30, bpm:118,
+    melody:['C5','-','B4','-','A4','-','G4','-','E4','-','G4','-','A4','-','C5','-',
+            'D5','-','C5','-','B4','-','A4','-','G4','-','E4','-','D4','-','E4','-'] }
+];
+
+const PHOTOS = [
+  'linear-gradient(135deg,#ff6b6b,#ee5a6f)','linear-gradient(135deg,#4ecdc4,#44a08d)',
+  'linear-gradient(135deg,#ffe66d,#ffcc00)','linear-gradient(135deg,#a8e6cf,#56ab91)',
+  'linear-gradient(135deg,#c7a4ff,#a55eea)','linear-gradient(135deg,#74b9ff,#0984e3)',
+  'linear-gradient(135deg,#ffa502,#ff6348)','linear-gradient(135deg,#ff9ff3,#f368e0)',
+  'linear-gradient(135deg,#00b894,#00cec9)','linear-gradient(135deg,#fd79a8,#e84393)',
+  'linear-gradient(135deg,#6c5ce7,#5f27cd)','linear-gradient(135deg,#fdcb6e,#f39c12)'
+];
+
+const CATALOG = [
+  { id:'gta6', name:'City Rampage', icon:'🚗', bg:'linear-gradient(135deg,#f39c12,#e67e22)',
+    cat:'Экшн', price:69.99, desc:'Легендарная top-down экшн-игра! Ходи по городу, стреляй, собирай деньги, уходи от полиции.' },
+  { id:'minecraft', name:'Blocky World', icon:'⛏️', bg:'linear-gradient(135deg,#4caf50,#2e7d32)',
+    cat:'Песочница', price:29.99, desc:'Строй и разрушай блоки в 2D-песочнице. Исследуй мир, копай, ставь блоки.' },
+  { id:'mario', name:'Plumber Jump', icon:'🍄', bg:'linear-gradient(135deg,#e53935,#b71c1c)',
+    cat:'Платформер', price:9.99, desc:'Классический платформер! Прыгай по платформам, собирай монеты, побеждай врагов.' },
+  { id:'flappy', name:'Flappy Wings', icon:'🐦', bg:'linear-gradient(135deg,#4dd0e1,#0097a7)',
+    cat:'Аркада', price:0.99, desc:'Пролетай между трубами. Простая механика — сложный геймплей.' },
+  { id:'space-runner', name:'Space Runner', icon:'🚀', bg:'linear-gradient(135deg,#ff6b6b,#ee5a6f)',
+    cat:'Аркада', price:4.99, desc:'Управляй космическим кораблём, уклоняйся от астероидов и собирай кристаллы.' },
+  { id:'puzzle-2048', name:'2048 Puzzle', icon:'🔢', bg:'linear-gradient(135deg,#f39c12,#e67e22)',
+    cat:'Головоломка', price:2.99, desc:'Соединяй плитки и доберись до 2048!' },
+  { id:'racing-x', name:'Racing X', icon:'🏎️', bg:'linear-gradient(135deg,#ffa502,#ff6348)',
+    cat:'Гонки', price:6.99, desc:'Гонки в стиле аркады. Уклоняйся от машин, набирай скорость.' },
+  { id:'photo-pro', name:'Photo Pro', icon:'📸', bg:'linear-gradient(135deg,#ffe66d,#ffcc00)',
+    cat:'Фото', price:9.99, desc:'Профессиональный редактор с 12 фильтрами.' },
+  { id:'weather-live', name:'Weather Live', icon:'⛅', bg:'linear-gradient(135deg,#a8e6cf,#56ab91)',
+    cat:'Погода', price:1.99, desc:'Детальный прогноз с почасовым и недельным видом.' },
+  { id:'music-pro', name:'Music Pro', icon:'🎧', bg:'linear-gradient(135deg,#c7a4ff,#a55eea)',
+    cat:'Музыка', subscription:true,
+    plans:[{id:'month',name:'Месяц',price:2.99},{id:'year',name:'Год',price:19.99,best:true}],
+    desc:'Премиум музыка без рекламы с офлайн-режимом.' },
+  { id:'cloudbox', name:'CloudBox', icon:'☁️', bg:'linear-gradient(135deg,#74b9ff,#0984e3)',
+    cat:'Продуктивность', subscription:true,
+    plans:[{id:'month',name:'Месяц',price:2.99},{id:'year',name:'Год',price:29.99,best:true}],
+    desc:'Облачное хранилище 1TB для всех ваших файлов.' },
+  { id:'vpn-shield', name:'VPN Shield', icon:'🛡️', bg:'linear-gradient(135deg,#00b894,#00cec9)',
+    cat:'Утилиты', subscription:true,
+    plans:[{id:'week',name:'Неделя',price:1.99},{id:'month',name:'Месяц',price:4.99},{id:'year',name:'Год',price:39.99,best:true}],
+    desc:'Быстрый VPN с серверами в 60 странах.' }
+];
+
+const DOCK_APPS = ['appstore','notes','music','settings'];
+
+/* ===== HELPERS ===== */
+const $ = s => document.querySelector(s);
+const screenEl = $('#screen');
+const phoneEl = $('#phone');
+const appViewEl = $('#app-view');
+const homeEl = $('#home-screen');
+const lockEl = $('#lock-screen');
+const toastEl = $('#toast');
+
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function formatPrice(n){return '$'+n.toFixed(2);}
+function formatTime(sec){const m=Math.floor(sec/60);const s=Math.floor(sec%60);return m+':'+String(s).padStart(2,'0');}
+function showToast(msg,type){
+  toastEl.textContent=msg;toastEl.className='toast'+(type?' '+type:'');
+  toastEl.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>toastEl.classList.remove('show'),2200);
+}
+
+/* ===== CLOCK ===== */
+function updateClock(){
+  const now=new Date();
+  const h=String(now.getHours()).padStart(2,'0'),m=String(now.getMinutes()).padStart(2,'0');
+  const t=h+':'+m;
+  $('#status-time').textContent=t;
+  $('#lock-time').textContent=t;
+  const days=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+  const months=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  $('#lock-date').textContent=days[now.getDay()]+', '+now.getDate()+' '+months[now.getMonth()];
+}
+updateClock();setInterval(updateClock,15000);
+
+/* ===== HOME SCREEN ===== */
+function renderHomeScreen(){
+  const installed=State.installed.filter(id=>APPS[id]||CATALOG.find(a=>a.id===id));
+  const mainApps=installed.filter(id=>!DOCK_APPS.includes(id));
+  const dockApps=DOCK_APPS.filter(id=>installed.includes(id));
+  const iconHtml=(id)=>{
+    let app=APPS[id];
+    if(!app){const c=CATALOG.find(a=>a.id===id);if(c)app={name:c.name,icon:c.icon,bg:c.bg};}
+    if(!app)return '';
+    return `<div class="app-icon" data-action="open-app" data-app="${id}">
+      <div class="icon-wrap" style="background:${app.bg}">${app.icon}</div>
+      <span class="label">${escapeHtml(app.name)}</span></div>`;
+  };
+  let html='<div class="apps-grid">';
+  mainApps.forEach(id=>{html+=iconHtml(id);});
+  html+='</div>';
+  if(dockApps.length){
+    html+='<div class="dock">';
+    dockApps.forEach(id=>{html+=iconHtml(id);});
+    html+='</div>';
+  }
+  homeEl.innerHTML=html;
+}
+
+/* ===== LOCK ===== */
+function unlockScreen(){
+  if(!State.locked)return;
+  State.locked=false;
+  Sound.unlock();
+  lockEl.classList.add('unlocked');
+  setTimeout(()=>homeEl.classList.add('active'),200);
+}
+
+/* ===== APP OPEN/CLOSE ===== */
+let gameLoop=null;
+let gameCleanup=null;
+let appCleanup=null;
+
+function stopAllLoops(){
+  if(gameLoop){cancelAnimationFrame(gameLoop);gameLoop=null;}
+  if(gameCleanup){try{gameCleanup();}catch(e){}gameCleanup=null;}
+  if(appCleanup){try{appCleanup();}catch(e){}appCleanup=null;}
+  MusicPlayer.stop();
+}
+
+function openApp(appId){
+  if(State.currentApp||State.locked)return;
+  Sound.appOpen();
+  const iconEl=document.querySelector(`[data-action="open-app"][data-app="${appId}"]`);
+  const r=screenEl.getBoundingClientRect();
+  let ox='50%',oy='50%';
+  if(iconEl){
+    const ic=iconEl.querySelector('.icon-wrap').getBoundingClientRect();
+    ox=(ic.left+ic.width/2-r.left)+'px';
+    oy=(ic.top+ic.height/2-r.top)+'px';
+  }
+  appViewEl.innerHTML=renderApp(appId);
+  appViewEl.classList.add('active');
+  appViewEl.style.transformOrigin=`${ox} ${oy}`;
+  appViewEl.style.transform='scale(0.15)';
+  appViewEl.style.opacity='0';
+  State.currentApp=appId;
+  void appViewEl.offsetWidth;
+  appViewEl.style.transition='transform 0.4s cubic-bezier(0.32,0.72,0,1),opacity 0.25s ease';
+  appViewEl.style.transform='scale(1)';
+  appViewEl.style.opacity='1';
+  setTimeout(()=>setupApp(appId),100);
+}
+
+function closeApp(){
+  if(!State.currentApp)return;
+  Sound.appClose();
+  stopAllLoops();
+  appViewEl.style.transition='transform 0.35s cubic-bezier(0.32,0.72,0,1),opacity 0.25s ease';
+  appViewEl.style.transform='scale(0.15)';
+  appViewEl.style.opacity='0';
+  setTimeout(()=>{
+    appViewEl.classList.remove('active');
+    appViewEl.innerHTML='';
+    appViewEl.style.transform='';
+    appViewEl.style.opacity='';
+    appViewEl.style.transition='';
+    appViewEl.style.transformOrigin='';
+    State.currentApp=null;
+    renderHomeScreen();
+  },350);
+}
+
+/* ===== RENDER APPS ===== */
+function renderApp(appId){
+  switch(appId){
+    case 'appstore': return renderAppStore();
+    case 'calculator': return renderCalculator();
+    case 'notes': return renderNotes();
+    case 'music': return renderMusic();
+    case 'camera': return renderCamera();
+    case 'photos': return renderPhotos();
+    case 'weather': return renderWeather();
+    case 'settings': return renderSettings();
+    case 'flappy': return renderFlappy();
+    case 'mario': return renderMario();
+    case 'minecraft': return renderMinecraft();
+    case 'gta6': return renderGta();
+    case 'space-runner': return renderSpaceRunner();
+    case 'puzzle-2048': return render2048();
+    case 'racing-x': return renderRacing();
+    case 'photo-pro': return renderPhotoPro();
+    case 'weather-live': return renderWeatherLive();
+    case 'music-pro': return renderMusicPro();
+    case 'cloudbox': return renderCloudbox();
+    case 'vpn-shield': return renderVpn();
+    default: return renderSettings();
+  }
+}
+
+function setupApp(appId){
+  if(appCleanup){try{appCleanup();}catch(e){}appCleanup=null;}
+  switch(appId){
+    case 'music': setupMusic(); break;
+    case 'flappy': setupFlappy(); break;
+    case 'mario': setupMario(); break;
+    case 'minecraft': setupMinecraft(); break;
+    case 'gta6': setupGta(); break;
+    case 'space-runner': setupSpaceRunner(); break;
+    case 'puzzle-2048': setup2048(); break;
+    case 'racing-x': setupRacing(); break;
+  }
+}
+
+/* ===== STORE ===== */
+function renderAppStore(){
+  let rows='';
+  CATALOG.forEach(app=>{
+    const bought=State.purchased[app.id]||State.subscriptions[app.id];
+    const priceHtml=app.subscription
+      ? (bought?'<span class="as-buy-btn purchased">✓</span>':
+         `<button class="as-buy-btn" data-action="open-sub" data-app="${app.id}">Подписка</button>`)
+      : (bought?'<span class="as-buy-btn purchased">✓</span>':
+         `<button class="as-buy-btn" data-action="buy-app" data-app="${app.id}">${formatPrice(app.price)}</button>`);
+    rows+=`<div class="as-app-row" data-action="app-detail" data-app="${app.id}">
+      <div class="app-icon-sm" style="background:${app.bg}">${app.icon}</div>
+      <div class="app-info">
+        <div class="app-name">${escapeHtml(app.name)}</div>
+        <div class="app-cat">${escapeHtml(app.cat)}</div>
+        <div class="app-price">${app.subscription?'Подписка':formatPrice(app.price)}</div>
+      </div>${priceHtml}</div>`;
+  });
+  const hero=CATALOG[0];
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="as-header">
+      <div class="as-title-row">
+        <div class="as-title">Store</div>
+        <div class="as-balance">💰 $${State.balance.toFixed(2)}</div>
+      </div>
+      <div class="as-search">🔍 Поиск в Store</div>
+    </div>
+    <div class="as-tabs">
+      <div class="as-tab active">Сегодня</div><div class="as-tab">Игры</div>
+      <div class="as-tab">Приложения</div><div class="as-tab">Аркады</div>
+    </div>
+    <div class="app-content">
+      <div class="as-hero" data-action="app-detail" data-app="${hero.id}" style="background:${hero.bg}">
+        <div class="hero-badge">🔥 Рекомендуем</div>
+        <h2>${escapeHtml(hero.name)}</h2><p>${escapeHtml(hero.cat)}</p>
+        <div class="hero-icon">${hero.icon}</div>
+      </div>
+      <div class="as-section">
+        <div class="as-section-title">Все приложения</div>
+        ${rows}
+      </div>
+    </div></div>`;
+}
+
+function renderAppStoreDetail(appId){
+  const app=CATALOG.find(a=>a.id===appId);
+  if(!app)return renderAppStore();
+  const bought=State.purchased[app.id],sub=State.subscriptions[app.id],isSub=!!app.subscription;
+  let priceBlock;
+  if(isSub){
+    priceBlock=sub?`<button class="as-buy-btn-large purchased"><span class="btn-content">✓ Подписка активна</span></button>`:
+      `<button class="as-buy-btn-large" data-action="open-sub" data-app="${app.id}"><span class="btn-content">Оформить подписку</span></button>`;
+  } else {
+    priceBlock=bought?`<button class="as-buy-btn-large purchased" data-action="open-purchased" data-app="${app.id}"><span class="btn-content">Открыть</span></button>`:
+      `<button class="as-buy-btn-large" data-action="buy-app" data-app="${app.id}"><span class="btn-content">Купить за ${formatPrice(app.price)}</span><span class="spinner"></span></button>`;
+  }
+  let screenshots='';
+  for(let i=0;i<3;i++)screenshots+=`<div style="background:${app.bg};width:160px;height:280px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:48px;margin-right:12px">${app.icon}</div>`;
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header">
+      <button class="app-back" data-action="appstore-home">‹ Назад</button>
+      <div class="title"></div><div class="app-actions"></div>
+    </div>
+    <div class="app-content"><div class="as-detail">
+      <div class="as-detail-top">
+        <div class="as-detail-icon" style="background:${app.bg}">${app.icon}</div>
+        <div class="as-detail-meta">
+          <div class="as-detail-name">${escapeHtml(app.name)}</div>
+          <div class="as-detail-cat">${escapeHtml(app.cat)}</div>
+          <div class="as-detail-stats">
+            <div>Рейтинг<span>4.8 ★</span></div>
+            <div>Возраст<span>4+</span></div>
+          </div>
+        </div>
+      </div>
+      ${priceBlock}
+      <div style="display:flex;overflow-x:auto;margin-bottom:20px;padding-bottom:10px">${screenshots}</div>
+      <div class="as-description"><p>${escapeHtml(app.desc)}</p></div>
+    </div></div></div>`;
+}
+
+/* ===== CALCULATOR (FIXED) ===== */
+const calcState={display:'0',prev:null,op:null,wait:false};
+function renderCalculator(){
+  const btns=[['AC','fn','clear'],['±','fn','sign'],['%','fn','percent'],['÷','op','divide'],
+    ['7','','7'],['8','','8'],['9','','9'],['×','op','multiply'],
+    ['4','','4'],['5','','5'],['6','','6'],['−','op','subtract'],
+    ['1','','1'],['2','','2'],['3','','3'],['+','op','add'],
+    ['0','zero','0'],['.','','decimal'],['=','op','equals']];
+  const buttonsHtml=btns.map(b=>`<button class="calc-btn ${b[1]}" data-action="calc" data-val="${b[2]}">${b[0]}</button>`).join('');
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div style="flex:1;display:flex;flex-direction:column;padding:8px 14px 20px 14px;min-height:0;overflow:hidden">
+      <div class="calc-display" style="flex:1;min-height:80px;display:flex;align-items:flex-end;justify-content:flex-end;padding:16px 8px 12px 8px;font-size:68px;font-weight:200;color:#fff;overflow:hidden;white-space:nowrap;letter-spacing:-2px;line-height:1.1">${calcState.display}</div>
+      <div class="calc-buttons" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0">${buttonsHtml}</div>
+    </div>
+  </div>`;
+}
+function updateCalcDisplay(){
+  const el=appViewEl.querySelector('.calc-display');
+  if(el)el.textContent=calcState.display;
+  appViewEl.querySelectorAll('.calc-btn.op').forEach(b=>{
+    b.classList.toggle('active',calcState.op===b.dataset.val&&calcState.wait);
+  });
+}
+function calcInput(val){
+  Sound.tap();
+  const c=calcState;
+  if(val==='clear'){c.display='0';c.prev=null;c.op=null;c.wait=false;updateCalcDisplay();return;}
+  if(val==='sign'){if(c.display!=='0')c.display=c.display.startsWith('-')?c.display.slice(1):'-'+c.display;updateCalcDisplay();return;}
+  if(val==='percent'){c.display=String(parseFloat(c.display)/100);updateCalcDisplay();return;}
+  if(val==='decimal'){if(c.wait){c.display='0.';c.wait=false;}else if(!c.display.includes('.'))c.display+='.';updateCalcDisplay();return;}
+  if(['add','subtract','multiply','divide'].includes(val)){
+    if(c.op&&!c.wait){c.prev=calculate(c.prev,parseFloat(c.display),c.op);c.display=String(c.prev);}
+    else if(c.prev===null){c.prev=parseFloat(c.display);}
+    c.op=val;c.wait=true;updateCalcDisplay();return;
+  }
+  if(val==='equals'){
+    if(c.op&&c.prev!==null){c.display=String(calculate(c.prev,parseFloat(c.display),c.op));c.prev=null;c.op=null;c.wait=true;}
+    updateCalcDisplay();return;
+  }
+  if(c.wait){c.display=val;c.wait=false;}
+  else{if(c.display==='0')c.display=val;else if(c.display.length<12)c.display+=val;}
+  updateCalcDisplay();
+}
+function calculate(a,b,op){switch(op){case'add':return a+b;case'subtract':return a-b;case'multiply':return a*b;case'divide':return b===0?0:a/b;default:return b;}}
+
+/* ===== NOTES ===== */
+function renderNotes(editorId){
+  if(editorId!==undefined)return renderNoteEditor(editorId);
+  let list='';
+  if(!State.notes.length)list='<div class="empty-state"><div class="empty-icon">📝</div><div>Нет заметок</div></div>';
+  else{
+    const sorted=[...State.notes].sort((a,b)=>b.date-a.date);
+    sorted.forEach(n=>{
+      const dateStr=new Date(n.date).toLocaleDateString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      list+=`<div class="note-item" data-action="note-open" data-note="${n.id}">
+        <button class="delete-btn" data-action="note-delete" data-note="${n.id}">×</button>
+        <h4>${escapeHtml(n.title||'Без названия')}</h4>
+        <p>${escapeHtml(n.body||'Пустая заметка')}</p>
+        <div class="note-date">${dateStr}</div></div>`;
+    });
+  }
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header">
+      <div style="width:60px"></div><div class="title">Заметки</div>
+      <div class="app-actions"><button class="app-back" style="font-size:24px;padding:4px 8px" data-action="note-new">+</button></div>
+    </div>
+    <div class="app-content"><div class="notes-list">${list}</div></div></div>`;
+}
+function renderNoteEditor(noteId){
+  const note=State.notes.find(n=>n.id===noteId)||{id:'new',title:'',body:''};
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header">
+      <button class="app-back" data-action="notes-list">‹ Назад</button>
+      <div class="title"></div><div class="app-actions"></div>
+    </div>
+    <div class="app-content"><div class="note-editor">
+      <input type="text" id="note-title" placeholder="Заголовок" value="${escapeHtml(note.title)}" maxlength="60">
+      <textarea id="note-body" placeholder="Текст заметки...">${escapeHtml(note.body)}</textarea>
+      <button class="btn-save" data-action="note-save" data-note="${note.id}">Сохранить</button>
+    </div></div></div>`;
+}
+function saveNote(noteId){
+  const title=(document.getElementById('note-title').value||'').trim();
+  const body=(document.getElementById('note-body').value||'').trim();
+  if(!title&&!body){showToast('Заметка пустая','error');return;}
+  if(noteId==='new')State.notes.push({id:'n'+Date.now(),title,body,date:Date.now()});
+  else{const n=State.notes.find(n=>n.id===noteId);if(n){n.title=title;n.body=body;n.date=Date.now();}}
+  saveState();showToast('Сохранено','success');Sound.tap();
+  appViewEl.innerHTML=renderNotes();
+}
+
+/* ===== MUSIC ===== */
+const musicState={playing:false,trackIdx:0,elapsed:0,dur:0};
+function renderMusic(){
+  const track=TRACKS[musicState.trackIdx];
+  musicState.dur=track.dur;
+  let playlist='';
+  TRACKS.forEach((t,i)=>{
+    const active=i===musicState.trackIdx;
+    playlist+=`<div class="music-track ${active?'active':''}" data-action="music-track" data-idx="${i}">
+      <span class="track-num">${active?(musicState.playing?'▶':'❚❚'):(i+1)}</span>
+      <div class="track-info">
+        <div class="track-name">${escapeHtml(t.name)}</div>
+        <div class="track-artist">${escapeHtml(t.artist)}</div>
+      </div>
+      ${active?'<span class="playing-icon">♪</span>':''}
+    </div>`;
+  });
+  const pct=musicState.dur?(musicState.elapsed/musicState.dur*100):0;
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-content"><div class="music">
+      <div class="music-art ${musicState.playing?'playing':''}">🎵</div>
+      <div class="music-title">${escapeHtml(track.name)}</div>
+      <div class="music-artist">${escapeHtml(track.artist)}</div>
+      <div class="music-progress">
+        <div class="music-progress-bar"><div class="music-progress-fill" style="width:${pct}%"></div></div>
+        <div class="music-times"><span>${formatTime(musicState.elapsed)}</span><span>${formatTime(musicState.dur)}</span></div>
+      </div>
+      <div class="music-controls">
+        <button data-action="music-prev">⏮</button>
+        <button class="play-btn" data-action="music-toggle">${musicState.playing?'⏸':'▶'}</button>
+        <button data-action="music-next">⏭</button>
+      </div>
+      <div class="music-playlist"><h4>Плейлист</h4>${playlist}</div>
+    </div></div></div>`;
+}
+function setupMusic(){
+  if(musicState.playing){
+    MusicPlayer.start(TRACKS[musicState.trackIdx]);
+    musicState.timer=setInterval(()=>{
+      if(!musicState.playing)return;
+      musicState.elapsed++;
+      if(musicState.elapsed>=musicState.dur){nextTrack();return;}
+      const fill=appViewEl.querySelector('.music-progress-fill');
+      const times=appViewEl.querySelectorAll('.music-times span');
+      if(fill)fill.style.width=(musicState.elapsed/musicState.dur*100)+'%';
+      if(times[0])times[0].textContent=formatTime(musicState.elapsed);
+    },1000);
+  }
+}
+function toggleMusic(){
+  if(!musicState.playing){
+    musicState.playing=true;
+    MusicPlayer.start(TRACKS[musicState.trackIdx]);
+    musicState.timer=setInterval(()=>{
+      if(!musicState.playing)return;
+      musicState.elapsed++;
+      if(musicState.elapsed>=musicState.dur){nextTrack();return;}
+      const fill=appViewEl.querySelector('.music-progress-fill');
+      const times=appViewEl.querySelectorAll('.music-times span');
+      if(fill)fill.style.width=(musicState.elapsed/musicState.dur*100)+'%';
+      if(times[0])times[0].textContent=formatTime(musicState.elapsed);
+    },1000);
+    const btn=appViewEl.querySelector('.play-btn');
+    if(btn)btn.textContent='⏸';
+    const art=appViewEl.querySelector('.music-art');
+    if(art)art.classList.add('playing');
+    const num=appViewEl.querySelector('.music-track.active .track-num');
+    if(num)num.textContent='▶';
+  } else {
+    musicState.playing=false;
+    MusicPlayer.stop();
+    if(musicState.timer){clearInterval(musicState.timer);musicState.timer=null;}
+    const btn=appViewEl.querySelector('.play-btn');
+    if(btn)btn.textContent='▶';
+    const art=appViewEl.querySelector('.music-art');
+    if(art)art.classList.remove('playing');
+    const num=appViewEl.querySelector('.music-track.active .track-num');
+    if(num)num.textContent='❚❚';
+  }
+}
+function nextTrack(){
+  musicState.trackIdx=(musicState.trackIdx+1)%TRACKS.length;
+  musicState.elapsed=0;musicState.dur=TRACKS[musicState.trackIdx].dur;
+  const wasPlaying=musicState.playing;
+  MusicPlayer.stop();
+  if(musicState.timer){clearInterval(musicState.timer);musicState.timer=null;}
+  musicState.playing=false;
+  appViewEl.innerHTML=renderMusic();
+  setTimeout(()=>{if(wasPlaying)toggleMusic();},50);
+}
+function prevTrack(){
+  musicState.trackIdx=(musicState.trackIdx-1+TRACKS.length)%TRACKS.length;
+  musicState.elapsed=0;musicState.dur=TRACKS[musicState.trackIdx].dur;
+  const wasPlaying=musicState.playing;
+  MusicPlayer.stop();
+  if(musicState.timer){clearInterval(musicState.timer);musicState.timer=null;}
+  musicState.playing=false;
+  appViewEl.innerHTML=renderMusic();
+  setTimeout(()=>{if(wasPlaying)toggleMusic();},50);
+}
+
+/* ===== CAMERA ===== */
+function renderCamera(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-content" style="overflow:hidden"><div class="camera">
+      <div class="camera-view"><div class="camera-flash" id="camera-flash"></div></div>
+      <div class="camera-controls">
+        <button class="camera-btn" data-action="camera-photos">🖼️</button>
+        <button class="shutter" data-action="camera-shutter"></button>
+        <button class="camera-btn" data-action="camera-flip">🔄</button>
+      </div>
+    </div></div></div>`;
+}
+function cameraShutter(){
+  Sound.shutter();
+  const flash=document.getElementById('camera-flash');
+  if(flash){flash.classList.remove('flash');void flash.offsetWidth;flash.classList.add('flash');}
+  showToast('📸 Фото сохранено','success');
+}
+
+/* ===== PHOTOS ===== */
+function renderPhotos(){
+  let tiles='';
+  PHOTOS.forEach(bg=>{tiles+=`<div class="photo-tile" style="background:${bg}" data-action="photo-view"></div>`;});
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header">
+      <div style="width:60px"></div><div class="title">Фото</div><div class="app-actions"></div>
+    </div>
+    <div class="app-content"><div class="photos-grid">${tiles}</div></div></div>`;
+}
+
+/* ===== WEATHER ===== */
+function renderWeather(){
+  const hours=['Сейчас','13','14','15','16','17','18','19'];
+  const temps=[18,19,20,20,19,18,17,16];
+  const icons=['⛅','☀️','☀️','⛅','⛅','🌤️','🌥️','🌙'];
+  let hoursHtml='';
+  hours.forEach((h,i)=>{hoursHtml+=`<div class="weather-hour"><span class="h-time">${h}</span><span class="h-icon">${icons[i]}</span><span class="h-temp">${temps[i]}°</span></div>`;});
+  const days=['Сегодня','Вторник','Среда','Четверг','Пятница','Суббота','Воскресенье'];
+  const dayIcons=['⛅','🌧️','☀️','⛅','🌤️','☀️','🌧️'];
+  const dayTemps=[['16','20'],['14','17'],['17','22'],['16','20'],['15','19'],['18','23'],['14','16']];
+  let daysHtml='';
+  days.forEach((d,i)=>{daysHtml+=`<div class="day-row"><span class="day-name">${d}</span><span class="day-icon">${dayIcons[i]}</span><span class="day-temp">${dayTemps[i][0]}° / ${dayTemps[i][1]}°</span></div>`;});
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-content" style="overflow:hidden"><div class="weather">
+      <div class="weather-city">Москва</div>
+      <div class="weather-temp">18°</div>
+      <div class="weather-cond">Переменная облачность</div>
+      <div class="weather-range">Макс.: 20° Мин.: 12°</div>
+      <div class="weather-card"><div class="weather-card-title">Почасовой прогноз</div>
+        <div class="weather-hours">${hoursHtml}</div></div>
+      <div class="weather-card weather-days"><div class="weather-card-title">Прогноз на 7 дней</div>
+        ${daysHtml}</div>
+    </div></div></div>`;
+}
+
+/* ===== SETTINGS ===== */
+function renderSettings(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><div style="width:60px"></div><div class="title">Настройки</div><div class="app-actions"></div></div>
+    <div class="app-content"><div class="settings">
+      <div class="settings-group-title">Об устройстве</div>
+      <div class="settings-section">
+        <div class="settings-row"><div class="row-icon" style="background:#636e72">📱</div>
+          <div class="row-label">Модель</div>
+          <div class="row-value">${State.model==='iphone'?'iPhone 15 Pro':'Android'}</div></div>
+        <div class="settings-row"><div class="row-icon" style="background:#0a84ff">💾</div>
+          <div class="row-label">Хранилище</div><div class="row-value">64 GB</div></div>
+      </div>
+      <div class="settings-group-title">Аккаунт</div>
+      <div class="settings-section">
+        <div class="settings-row"><div class="row-icon" style="background:#30d158">💰</div>
+          <div class="row-label">Баланс</div><div class="row-value">$${State.balance.toFixed(2)}</div></div>
+        <div class="settings-row" data-action="reset">
+          <div class="row-icon" style="background:#ff3b30">🗑️</div>
+          <div class="row-label" style="color:#ff3b30">Сбросить всё</div></div>
+      </div>
+      <div class="settings-group-title">Приложения</div>
+      <div class="settings-section">
+        <div class="settings-row"><div class="row-icon" style="background:#ff9500">📦</div>
+          <div class="row-label">Установлено</div><div class="row-value">${State.installed.length}</div></div>
+        <div class="settings-row"><div class="row-icon" style="background:#c7a4ff">🎫</div>
+          <div class="row-label">Подписки</div><div class="row-value">${Object.keys(State.subscriptions).length}</div></div>
+      </div>
+    </div></div></div>`;
+}
+
+/* ==========================================================
+   GAMES (без изменений)
+   ========================================================== */
+
+function renderFlappy(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Flappy Wings</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="flappy-canvas" class="game-canvas"></canvas>
+        <div class="game-hud"><span id="flappy-score">0</span><span>🐦</span></div>
+        <div class="game-hint" id="flappy-hint">Тапни чтобы начать</div>
+      </div>
+    </div></div>`;
+}
+function setupFlappy(){
+  const canvas=document.getElementById('flappy-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const W=()=>canvas.width,H=()=>canvas.height;
+  let bird,pipes,score,started,gameOver;
+  function reset(){
+    bird={x:W()*0.28,y:H()/2,vy:0,r:14};
+    pipes=[];score=0;started=false;gameOver=false;
+    for(let i=0;i<3;i++)addPipe(W()+200+i*220);
+    const s=document.getElementById('flappy-score');if(s)s.textContent='0';
+    const hint=document.getElementById('flappy-hint');if(hint)hint.style.display='block';
+  }
+  function addPipe(x){
+    const gap=Math.max(120,H()*0.22);
+    const minTop=60,maxTop=H()-gap-100;
+    const topH=minTop+Math.random()*(maxTop-minTop);
+    pipes.push({x,topH,gap,passed:false});
+  }
+  function flap(){
+    if(gameOver){reset();return;}
+    if(!started){started=true;const h=document.getElementById('flappy-hint');if(h)h.style.display='none';}
+    bird.vy=-6.5;Sound.tone(550,0.06,'sine',0.06);
+  }
+  const onClick=()=>flap();
+  const onKey=(e)=>{if(e.code==='Space'){e.preventDefault();flap();}};
+  canvas.addEventListener('click',onClick);
+  document.addEventListener('keydown',onKey);
+  function update(){
+    if(!started||gameOver)return;
+    bird.vy+=0.4;bird.y+=bird.vy;
+    if(bird.y+bird.r>H()-30){bird.y=H()-30-bird.r;gameOver=true;Sound.error();}
+    if(bird.y-bird.r<0){bird.y=bird.r;bird.vy=0;}
+    pipes.forEach(p=>{
+      p.x-=2.6;
+      if(!p.passed&&p.x+50<bird.x){p.passed=true;score++;Sound.tone(880,0.05,'sine',0.05);
+        const s=document.getElementById('flappy-score');if(s)s.textContent=score;}
+      if(bird.x+bird.r>p.x&&bird.x-bird.r<p.x+50){
+        if(bird.y-bird.r<p.topH||bird.y+bird.r>p.topH+p.gap){gameOver=true;Sound.error();}
+      }
+    });
+    if(pipes.length&&pipes[0].x<-100)pipes.shift();
+    const last=pipes[pipes.length-1];
+    if(last&&last.x<W()-220)addPipe(last.x+220);
+  }
+  function draw(){
+    const g=ctx.createLinearGradient(0,0,0,H());
+    g.addColorStop(0,'#4ec0ca');g.addColorStop(1,'#70c5ce');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W(),H());
+    ctx.fillStyle='#ded895';ctx.fillRect(0,H()-30,W(),30);
+    ctx.fillStyle='#d3c96f';ctx.fillRect(0,H()-30,W(),4);
+    pipes.forEach(p=>{
+      ctx.fillStyle='#73bf2e';ctx.fillRect(p.x,0,50,p.topH);ctx.fillRect(p.x,p.topH+p.gap,50,H()-p.topH-p.gap);
+      ctx.fillStyle='#558022';
+      ctx.fillRect(p.x-3,p.topH-20,56,20);ctx.fillRect(p.x-3,p.topH+p.gap,56,20);
+    });
+    ctx.save();ctx.translate(bird.x,bird.y);ctx.rotate(Math.max(-0.5,Math.min(0.8,bird.vy/12)));
+    ctx.fillStyle='#ffd93d';ctx.beginPath();ctx.arc(0,0,bird.r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffba08';ctx.beginPath();ctx.arc(0,3,bird.r-3,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(5,-4,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';ctx.beginPath();ctx.arc(6,-4,2.5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ff9f1c';ctx.beginPath();ctx.moveTo(bird.r-2,-1);ctx.lineTo(bird.r+10,2);ctx.lineTo(bird.r-2,6);ctx.closePath();ctx.fill();
+    ctx.restore();
+    const wingOff=Math.sin(Date.now()/80)*3;
+    ctx.fillStyle='#e6a500';ctx.beginPath();ctx.ellipse(bird.x-4,bird.y+2+wingOff,8,4,0,0,Math.PI*2);ctx.fill();
+    if(gameOver){
+      ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(0,0,W(),H());
+      ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.font='bold 34px sans-serif';ctx.fillText('Game Over',W()/2,H()/2-30);
+      ctx.font='20px sans-serif';ctx.fillText('Счёт: '+score,W()/2,H()/2+10);
+      ctx.font='15px sans-serif';ctx.fillStyle='#ffd93d';
+      ctx.fillText('Нажмите чтобы играть снова',W()/2,H()/2+50);
+    }
+  }
+  function loop(){update();draw();gameLoop=requestAnimationFrame(loop);}
+  reset();loop();
+  gameCleanup=()=>{
+    canvas.removeEventListener('click',onClick);
+    document.removeEventListener('keydown',onKey);
+  };
+}
+
+function renderMario(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Plumber Jump</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="mario-canvas" class="game-canvas"></canvas>
+        <div class="game-hud"><span id="mario-score">0 🪙</span><span id="mario-lives">❤️❤️❤️</span></div>
+      </div>
+    </div></div>`;
+}
+function setupMario(){
+  const canvas=document.getElementById('mario-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const W=()=>canvas.width,H=()=>canvas.height;
+  const GRAV=0.55,JUMP=-11,SPEED=3.2;
+  let player,camX,platforms,coins,enemies,score,lives,flags;
+  function reset(){
+    player={x:60,y:0,vx:0,vy:0,w:24,h:32,onGround:false,face:1};
+    camX=0;score=0;lives=3;
+    platforms=[
+      {x:0,y:H()-40,w:500,h:40,type:'ground'},
+      {x:520,y:H()-40,w:400,h:40,type:'ground'},
+      {x:180,y:H()-130,w:80,h:16,type:'brick'},
+      {x:300,y:H()-200,w:80,h:16,type:'brick'},
+      {x:450,y:H()-160,w:70,h:16,type:'brick'},
+      {x:600,y:H()-220,w:80,h:16,type:'brick'},
+      {x:750,y:H()-150,w:100,h:16,type:'brick'},
+      {x:920,y:H()-40,w:600,h:40,type:'ground'},
+      {x:1050,y:H()-140,w:80,h:16,type:'brick'},
+      {x:1200,y:H()-230,w:90,h:16,type:'brick'},
+      {x:1350,y:H()-100,w:70,h:16,type:'brick'},
+    ];
+    coins=[];
+    for(let i=0;i<10;i++){
+      const p=platforms[2+Math.floor(Math.random()*(platforms.length-3))];
+      coins.push({x:p.x+20+Math.random()*(p.w-40),y:p.y-30,collected:false});
+    }
+    coins.push({x:400,y:H()-250,collected:false});
+    coins.push({x:1100,y:H()-280,collected:false});
+    enemies=[
+      {x:600,y:H()-72,w:24,h:32,vx:-1,alive:true},
+      {x:1000,y:H()-72,w:24,h:32,vx:-1,alive:true},
+      {x:1300,y:H()-72,w:24,h:32,vx:-1,alive:true},
+    ];
+    flags={x:1450,y:H()-40,w:6,h:80};
+    player.y=H()-40-player.h;
+    updateMarioHUD();
+  }
+  function updateMarioHUD(){
+    const s=document.getElementById('mario-score');if(s)s.textContent=score+' 🪙';
+    const l=document.getElementById('mario-lives');
+    if(l)l.textContent='❤️'.repeat(Math.max(0,lives));
+  }
+  const keys={};
+  const onKey=(e)=>{keys[e.code]=e.type==='keydown';if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault();};
+  document.addEventListener('keydown',onKey);
+  document.addEventListener('keyup',onKey);
+  const onCanvasDown=(e)=>{
+    const r=canvas.getBoundingClientRect();
+    const x=e.touches?e.touches[0].clientX:e.clientX;
+    const relX=(x-r.left)/r.width;
+    if(relX<0.35)keys['ArrowLeft']=true;
+    else if(relX>0.65)keys['ArrowRight']=true;
+    else keys['Space']=true;
+  };
+  const onCanvasUp=()=>{keys['ArrowLeft']=false;keys['ArrowRight']=false;keys['Space']=false;};
+  canvas.addEventListener('mousedown',onCanvasDown);
+  canvas.addEventListener('mouseup',onCanvasUp);
+  canvas.addEventListener('touchstart',onCanvasDown,{passive:true});
+  canvas.addEventListener('touchend',onCanvasUp);
+  function update(){
+    if(keys['ArrowLeft']||keys['KeyA']){player.vx=-SPEED;player.face=-1;}
+    else if(keys['ArrowRight']||keys['KeyD']){player.vx=SPEED;player.face=1;}
+    else player.vx*=0.8;
+    if((keys['Space']||keys['ArrowUp']||keys['KeyW'])&&player.onGround){
+      player.vy=JUMP;player.onGround=false;
+      Sound.tone(400,0.08,'square',0.05);
+    }
+    player.vy+=GRAV;player.x+=player.vx;player.y+=player.vy;player.onGround=false;
+    for(const p of platforms){
+      if(player.x+player.w>p.x&&player.x<p.x+p.w&&player.y+player.h>p.y&&player.y<p.y+p.h){
+        if(player.vy>0&&player.y+player.h-player.vy<=p.y){
+          player.y=p.y-player.h;player.vy=0;player.onGround=true;
+        } else if(player.vy<0&&player.y-player.vy>=p.y+p.h){
+          player.y=p.y+p.h;player.vy=0;
+        }
+      }
+    }
+    for(const c of coins){
+      if(!c.collected&&Math.abs(c.x-(player.x+player.w/2))<20&&Math.abs(c.y-(player.y+player.h/2))<20){
+        c.collected=true;score++;updateMarioHUD();
+        Sound.tone(1200,0.1,'sine',0.08);Sound.tone(1500,0.1,'sine',0.08,0.05);
+      }
+    }
+    for(const e of enemies){
+      if(!e.alive)continue;
+      e.x+=e.vx;
+      if(e.x<520||e.x>900)e.vx*=-1;
+      if(Math.abs(e.x-(player.x+player.w/2))<20&&Math.abs((e.y-16)-(player.y+player.h/2))<25){
+        if(player.vy>0&&player.y+player.h-e.vy<=e.y){
+          e.alive=false;player.vy=-8;score+=2;updateMarioHUD();
+          Sound.tone(600,0.1,'square',0.08);
+        } else if(lives>0){
+          lives--;updateMarioHUD();Sound.error();
+          player.x=60;player.y=H()-40-player.h;player.vy=0;
+          if(lives<=0){showToast('Game Over','error');reset();}
+        }
+      }
+    }
+    if(player.y>H()+50){
+      lives--;updateMarioHUD();
+      if(lives<=0){showToast('Game Over','error');reset();}
+      else{player.x=60;player.y=H()-40-player.h;player.vy=0;Sound.error();}
+    }
+    const targetCam=Math.max(0,player.x-W()*0.35);
+    camX+=(targetCam-camX)*0.1;
+    if(player.x>flags.x&&!flags.won){
+      flags.won=true;showToast('🎉 Победа!','success');
+      setTimeout(reset,2000);
+    }
+  }
+  function draw(){
+    const g=ctx.createLinearGradient(0,0,0,H());
+    g.addColorStop(0,'#5c94fc');g.addColorStop(1,'#87ceeb');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W(),H());
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    for(let i=0;i<4;i++){
+      const cx=((i*300-camX*0.3)%(W()+200)+W()+200)%(W()+200)-100;
+      const cy=60+i*40;
+      ctx.beginPath();ctx.arc(cx,cy,20,0,Math.PI*2);ctx.arc(cx+20,cy,26,0,Math.PI*2);ctx.arc(cx+45,cy,20,0,Math.PI*2);ctx.fill();
+    }
+    ctx.save();ctx.translate(-camX,0);
+    for(const p of platforms){
+      if(p.type==='ground'){
+        ctx.fillStyle='#c84c0c';ctx.fillRect(p.x,p.y,p.w,p.h);
+        ctx.fillStyle='#6b8e23';ctx.fillRect(p.x,p.y,p.w,6);
+        ctx.strokeStyle='rgba(0,0,0,.2)';ctx.lineWidth=1;
+        for(let x=p.x;x<p.x+p.w;x+=20){ctx.beginPath();ctx.moveTo(x,p.y+6);ctx.lineTo(x,p.y+p.h);ctx.stroke();}
+        ctx.beginPath();ctx.moveTo(p.x,p.y+20);ctx.lineTo(p.x+p.w,p.y+20);ctx.stroke();
+      } else {
+        ctx.fillStyle='#d2691e';ctx.fillRect(p.x,p.y,p.w,p.h);
+        ctx.fillStyle='rgba(255,255,255,.2)';ctx.fillRect(p.x,p.y,p.w,2);
+        ctx.strokeStyle='rgba(0,0,0,.3)';
+        for(let x=p.x;x<p.x+p.w;x+=16){ctx.beginPath();ctx.moveTo(x,p.y);ctx.lineTo(x,p.y+p.h);ctx.stroke();}
+      }
+    }
+    for(const c of coins){
+      if(c.collected)continue;
+      const t=Math.sin(Date.now()/150+c.x)*3;
+      ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(c.x,c.y,8+t*0.3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffed4e';ctx.beginPath();ctx.arc(c.x-2,c.y-2,4,0,Math.PI*2);ctx.fill();
+    }
+    for(const e of enemies){
+      if(!e.alive)continue;
+      ctx.fillStyle='#8b4513';ctx.fillRect(e.x,e.y,e.w,e.h);
+      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(e.x+6,e.y+10,4,0,Math.PI*2);ctx.arc(e.x+18,e.y+10,4,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#000';ctx.beginPath();ctx.arc(e.x+6,e.y+10,2,0,Math.PI*2);ctx.arc(e.x+18,e.y+10,2,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillStyle='#ccc';ctx.fillRect(flags.x,flags.y,flags.w,flags.h);
+    ctx.fillStyle='#ff0000';ctx.beginPath();
+    const wave=Math.sin(Date.now()/200)*5;
+    ctx.moveTo(flags.x+flags.w,flags.y+5);
+    ctx.lineTo(flags.x+flags.w+30,flags.y+15+wave);
+    ctx.lineTo(flags.x+flags.w,flags.y+25);
+    ctx.closePath();ctx.fill();
+    const px=player.x,py=player.y,pw=player.w,ph=player.h;
+    ctx.fillStyle='#e52521';ctx.fillRect(px+4,py+10,pw-8,ph-18);
+    ctx.fillStyle='#0b4fa0';ctx.fillRect(px+2,py+18,pw-4,ph-22);
+    ctx.fillStyle='#fdd5a0';ctx.fillRect(px+6,py+2,pw-12,10);
+    ctx.fillStyle='#e52521';ctx.fillRect(px+4,py,pw-8,5);ctx.fillRect(px+4,py,pw-4,2);
+    ctx.fillStyle='#000';ctx.fillRect(px+(player.face>0?14:10),py+6,2,3);
+    ctx.fillStyle='#4a2000';ctx.fillRect(px+8,py+11,pw-16,2);
+    ctx.restore();
+  }
+  function loop(){update();draw();gameLoop=requestAnimationFrame(loop);}
+  reset();loop();
+  gameCleanup=()=>{
+    document.removeEventListener('keydown',onKey);
+    document.removeEventListener('keyup',onKey);
+    canvas.removeEventListener('mousedown',onCanvasDown);
+    canvas.removeEventListener('mouseup',onCanvasUp);
+    canvas.removeEventListener('touchstart',onCanvasDown);
+    canvas.removeEventListener('touchend',onCanvasUp);
+  };
+}
+
+function renderMinecraft(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Blocky World</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="mc-canvas" class="game-canvas"></canvas>
+        <div class="mc-toolbar" id="mc-toolbar">
+          <div class="mc-slot active" data-block="grass">🟩</div>
+          <div class="mc-slot" data-block="dirt">🟫</div>
+          <div class="mc-slot" data-block="stone">⬜</div>
+          <div class="mc-slot" data-block="wood">🟧</div>
+          <div class="mc-slot" data-block="water">🟦</div>
+          <div class="mc-slot" data-block="air">❌</div>
+        </div>
+        <div class="game-hint" style="bottom:60px">Клик — поставить, правый клик — сломать</div>
+      </div>
+    </div></div>`;
+}
+function setupMinecraft(){
+  const canvas=document.getElementById('mc-canvas');
+  const toolbar=document.getElementById('mc-toolbar');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const BLOCK_SIZE=26;
+  const COLS=Math.floor(390/BLOCK_SIZE);
+  const ROWS=Math.floor(700/BLOCK_SIZE);
+  const COLORS={grass:'#5fa850',dirt:'#8b5a2b',stone:'#888',wood:'#c98b4a',water:'#3b82f6',air:null};
+  const world=[];
+  for(let y=0;y<ROWS;y++){
+    const row=[];
+    for(let x=0;x<COLS;x++){
+      if(y>ROWS*0.65)row.push(y===Math.floor(ROWS*0.65)?'grass':y>ROWS*0.75?'stone':'dirt');
+      else row.push('air');
+    }
+    world.push(row);
+  }
+  let selectedBlock='grass';
+  let player={x:Math.floor(COLS/2),y:Math.floor(ROWS*0.65)-1,vy:0};
+  const onToolbarClick=(e)=>{
+    const slot=e.target.closest('.mc-slot');if(!slot)return;
+    toolbar.querySelectorAll('.mc-slot').forEach(s=>s.classList.remove('active'));
+    slot.classList.add('active');
+    selectedBlock=slot.dataset.block;
+    Sound.tap();
+  };
+  toolbar.addEventListener('click',onToolbarClick);
+  function cellFromEvent(e){
+    const r=canvas.getBoundingClientRect();
+    const x=e.touches?e.touches[0].clientX:e.clientX;
+    const y=e.touches?e.touches[0].clientY:e.clientY;
+    return {col:Math.floor((x-r.left)/BLOCK_SIZE),row:Math.floor((y-r.top)/BLOCK_SIZE)};
+  }
+  const onCanvasClick=(e)=>{
+    const {col,row}=cellFromEvent(e);
+    if(row<0||row>=ROWS||col<0||col>=COLS)return;
+    if(e.button===2||e.ctrlKey){world[row][col]='air';Sound.tone(200,0.05,'square',0.05);}
+    else{world[row][col]=selectedBlock;Sound.tone(400,0.05,'square',0.05);}
+  };
+  const onCanvasContext=(e)=>{e.preventDefault();
+    const {col,row}=cellFromEvent(e);
+    if(row<0||row>=ROWS||col<0||col>=COLS)return;
+    world[row][col]='air';Sound.tone(200,0.05,'square',0.05);
+  };
+  canvas.addEventListener('click',onCanvasClick);
+  canvas.addEventListener('contextmenu',onCanvasContext);
+  const onKey=(e)=>{
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){if(player.x>0)player.x--;}
+    if(e.code==='ArrowRight'||e.code==='KeyD'){if(player.x<COLS-1)player.x++;}
+    if(e.code==='ArrowUp'||e.code==='KeyW'||e.code==='Space'){if(player.y>0)player.y--;}
+    if(e.code==='ArrowDown'||e.code==='KeyS'){if(player.y<ROWS-1)player.y++;}
+  };
+  document.addEventListener('keydown',onKey);
+  function draw(){
+    const sky=ctx.createLinearGradient(0,0,0,canvas.height);
+    sky.addColorStop(0,'#87ceeb');sky.addColorStop(1,'#b0e0e6');
+    ctx.fillStyle=sky;ctx.fillRect(0,0,canvas.width,canvas.height);
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const b=world[y][x];if(b==='air')continue;
+        ctx.fillStyle=COLORS[b]||'#666';
+        ctx.fillRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);
+        ctx.strokeStyle='rgba(0,0,0,.15)';ctx.lineWidth=1;
+        ctx.strokeRect(x*BLOCK_SIZE,y*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE);
+      }
+    }
+    const px=player.x*BLOCK_SIZE,py=player.y*BLOCK_SIZE;
+    ctx.fillStyle='#3b82f6';ctx.fillRect(px+4,py+10,BLOCK_SIZE-8,BLOCK_SIZE-10);
+    ctx.fillStyle='#fdd5a0';ctx.fillRect(px+6,py+2,BLOCK_SIZE-12,10);
+    ctx.fillStyle='#000';ctx.fillRect(px+8,py+6,2,2);ctx.fillRect(px+BLOCK_SIZE-10,py+6,2,2);
+  }
+  function loop(){draw();gameLoop=requestAnimationFrame(loop);}
+  loop();
+  gameCleanup=()=>{
+    canvas.removeEventListener('click',onCanvasClick);
+    canvas.removeEventListener('contextmenu',onCanvasContext);
+    document.removeEventListener('keydown',onKey);
+    toolbar.removeEventListener('click',onToolbarClick);
+  };
+}
+
+function renderGta(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">City Rampage</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="gta-canvas" class="game-canvas"></canvas>
+        <div class="game-hud"><span id="gta-money">💰 $0</span><span id="gta-stars">☆☆☆☆☆</span></div>
+        <div class="game-hint">WASD / стрелки — ходить · E / клик — стрелять</div>
+      </div>
+    </div></div>`;
+}
+function setupGta(){
+  const canvas=document.getElementById('gta-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const W=()=>canvas.width,H=()=>canvas.height;
+  const WORLD_W=1600,WORLD_H=1600;
+  let player={x:400,y:400,vx:0,vy:0,angle:0};
+  let camX=0,camY=0;
+  let money=0,stars=0;
+  let bullets=[],npcs=[],cars=[],pickups=[];
+  const buildings=[];
+  for(let bx=100;bx<WORLD_W-100;bx+=260){
+    for(let by=100;by<WORLD_H-100;by+=260){
+      if(Math.random()<0.7){
+        buildings.push({x:bx+30,y:by+30,w:180,h:180,color:`hsl(${Math.random()*60+200},30%,${Math.random()*20+20}%)`});
+      }
+    }
+  }
+  for(let i=0;i<12;i++){
+    cars.push({x:100+Math.random()*(WORLD_W-200),y:100+Math.random()*(WORLD_H-200),
+      angle:Math.random()*Math.PI*2,speed:0.5+Math.random()*1.5,color:`hsl(${Math.random()*360},70%,55%)`});
+  }
+  for(let i=0;i<10;i++){
+    npcs.push({x:200+Math.random()*(WORLD_W-400),y:200+Math.random()*(WORLD_H-400),
+      vx:(Math.random()-0.5)*1.5,vy:(Math.random()-0.5)*1.5,alive:true});
+  }
+  for(let i=0;i<20;i++){
+    pickups.push({x:100+Math.random()*(WORLD_W-200),y:100+Math.random()*(WORLD_H-200),collected:false});
+  }
+  function updateHUD(){
+    const m=document.getElementById('gta-money');if(m)m.textContent='💰 $'+money;
+    const s=document.getElementById('gta-stars');if(s)s.textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
+  }
+  updateHUD();
+  const keys={};
+  const onKey=(e)=>{keys[e.code]=e.type==='keydown';if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code))e.preventDefault();};
+  document.addEventListener('keydown',onKey);
+  document.addEventListener('keyup',onKey);
+  function shoot(){
+    bullets.push({x:player.x+Math.cos(player.angle)*20,y:player.y+Math.sin(player.angle)*20,
+      vx:Math.cos(player.angle)*10,vy:Math.sin(player.angle)*10,life:60});
+    Sound.tone(150,0.08,'sawtooth',0.1);
+    stars=Math.min(5,stars+1);updateHUD();
+    setTimeout(()=>{stars=Math.max(0,stars-1);updateHUD();},5000);
+  }
+  const onMouse=(e)=>{
+    const r=canvas.getBoundingClientRect();
+    const mx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+    const my=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    player.angle=Math.atan2(my-H()/2,mx-W()/2);
+  };
+  const onMouseDown=()=>shoot();
+  canvas.addEventListener('mousemove',onMouse);
+  canvas.addEventListener('mousedown',onMouseDown);
+  canvas.addEventListener('touchmove',onMouse,{passive:true});
+  canvas.addEventListener('touchstart',onMouseDown);
+  function update(){
+    let dx=0,dy=0;
+    if(keys['ArrowLeft']||keys['KeyA'])dx-=1;
+    if(keys['ArrowRight']||keys['KeyD'])dx+=1;
+    if(keys['ArrowUp']||keys['KeyW'])dy-=1;
+    if(keys['ArrowDown']||keys['KeyS'])dy+=1;
+    if(dx||dy){const l=Math.hypot(dx,dy);player.vx=dx/l*3.5;player.vy=dy/l*3.5;player.angle=Math.atan2(dy,dx);}
+    else {player.vx*=0.8;player.vy*=0.8;}
+    player.x+=player.vx;player.y+=player.vy;
+    player.x=Math.max(20,Math.min(WORLD_W-20,player.x));
+    player.y=Math.max(20,Math.min(WORLD_H-20,player.y));
+    camX+=(player.x-W()/2-camX)*0.1;
+    camY+=(player.y-H()/2-camY)*0.1;
+    camX=Math.max(0,Math.min(WORLD_W-W(),camX));
+    camY=Math.max(0,Math.min(WORLD_H-H(),camY));
+    bullets.forEach(b=>{b.x+=b.vx;b.y+=b.vy;b.life--;});
+    bullets.forEach(b=>{
+      npcs.forEach(n=>{
+        if(n.alive&&Math.hypot(b.x-n.x,b.y-n.y)<20){n.alive=false;b.life=0;money+=50;updateHUD();Sound.tone(300,0.15,'square',0.08);}
+      });
+    });
+    bullets=bullets.filter(b=>b.life>0);
+    npcs.forEach(n=>{
+      if(!n.alive)return;
+      n.x+=n.vx;n.y+=n.vy;
+      if(n.x<0||n.x>WORLD_W)n.vx*=-1;
+      if(n.y<0||n.y>WORLD_H)n.vy*=-1;
+    });
+    cars.forEach(c=>{
+      c.x+=Math.cos(c.angle)*c.speed;c.y+=Math.sin(c.angle)*c.speed;
+      if(c.x<20||c.x>WORLD_W-20)c.angle=Math.PI-c.angle;
+      if(c.y<20||c.y>WORLD_H-20)c.angle=-c.angle;
+    });
+    pickups.forEach(p=>{
+      if(!p.collected&&Math.hypot(p.x-player.x,p.y-player.y)<25){
+        p.collected=true;money+=10;updateHUD();Sound.tone(1200,0.1,'sine',0.08);
+      }
+    });
+  }
+  function draw(){
+    ctx.fillStyle='#2d4a1e';ctx.fillRect(0,0,W(),H());
+    ctx.save();ctx.translate(-camX,-camY);
+    ctx.fillStyle='#3a3a3a';
+    for(let i=0;i<WORLD_W;i+=260){ctx.fillRect(i,0,60,WORLD_H);ctx.fillRect(0,i,WORLD_W,60);}
+    ctx.strokeStyle='#ffd93d';ctx.setLineDash([20,20]);ctx.lineWidth=3;
+    for(let i=0;i<WORLD_W;i+=260){
+      ctx.beginPath();ctx.moveTo(i+30,0);ctx.lineTo(i+30,WORLD_H);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(0,i+30);ctx.lineTo(WORLD_W,i+30);ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    buildings.forEach(b=>{
+      ctx.fillStyle=b.color;ctx.fillRect(b.x,b.y,b.w,b.h);
+      ctx.strokeStyle='rgba(0,0,0,.4)';ctx.lineWidth=2;ctx.strokeRect(b.x,b.y,b.w,b.h);
+      ctx.fillStyle='rgba(255,255,200,.3)';
+      for(let wx=b.x+15;wx<b.x+b.w-15;wx+=30)for(let wy=b.y+15;wy<b.y+b.h-15;wy+=30)ctx.fillRect(wx,wy,10,10);
+    });
+    pickups.forEach(p=>{
+      if(p.collected)return;
+      const bounce=Math.sin(Date.now()/200+p.x)*3;
+      ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(p.x,p.y+bounce,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.font='bold 12px sans-serif';ctx.textAlign='center';
+      ctx.fillText('$',p.x,p.y+bounce+4);
+    });
+    cars.forEach(c=>{
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.angle);
+      ctx.fillStyle=c.color;ctx.fillRect(-20,-10,40,20);
+      ctx.fillStyle='#222';ctx.fillRect(-10,-8,20,16);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(-16,-8,6,4);ctx.fillRect(-16,4,6,4);ctx.fillRect(10,-8,6,4);ctx.fillRect(10,4,6,4);
+      ctx.restore();
+    });
+    npcs.forEach(n=>{
+      if(!n.alive)return;
+      ctx.fillStyle='#a02020';ctx.beginPath();ctx.arc(n.x,n.y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fdd5a0';ctx.beginPath();ctx.arc(n.x,n.y-3,6,0,Math.PI*2);ctx.fill();
+    });
+    bullets.forEach(b=>{ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(b.x,b.y,3,0,Math.PI*2);ctx.fill();});
+    ctx.save();ctx.translate(player.x,player.y);ctx.rotate(player.angle);
+    ctx.fillStyle='#3b82f6';ctx.beginPath();ctx.arc(0,0,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fdd5a0';ctx.beginPath();ctx.arc(0,0,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';ctx.beginPath();ctx.arc(4,-3,2,0,Math.PI*2);ctx.arc(4,3,2,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#222';ctx.fillRect(8,-2,10,4);
+    ctx.restore();
+    ctx.restore();
+  }
+  function loop(){update();draw();gameLoop=requestAnimationFrame(loop);}
+  loop();
+  gameCleanup=()=>{
+    document.removeEventListener('keydown',onKey);
+    document.removeEventListener('keyup',onKey);
+    canvas.removeEventListener('mousemove',onMouse);
+    canvas.removeEventListener('mousedown',onMouseDown);
+    canvas.removeEventListener('touchmove',onMouse);
+    canvas.removeEventListener('touchstart',onMouseDown);
+  };
+}
+
+function renderSpaceRunner(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Space Runner</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="space-canvas" class="game-canvas"></canvas>
+        <div class="game-hud"><span id="space-score">0</span><span>⭐</span></div>
+        <div class="game-hint">Стрелки / тап</div>
+      </div>
+    </div></div>`;
+}
+function setupSpaceRunner(){
+  const canvas=document.getElementById('space-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const W=()=>canvas.width,H=()=>canvas.height;
+  let ship,asteroids,crystals,score,gameOver,spawnTimer;
+  function reset(){
+    ship={x:W()/2,y:H()-80,w:36,h:40,vy:0};
+    asteroids=[];crystals=[];score=0;gameOver=false;spawnTimer=0;
+    const s=document.getElementById('space-score');if(s)s.textContent='0';
+  }
+  const keys={};
+  const onKey=(e)=>{keys[e.code]=e.type==='keydown';if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();};
+  document.addEventListener('keydown',onKey);
+  document.addEventListener('keyup',onKey);
+  let targetX=null;
+  const onTouch=(e)=>{
+    const r=canvas.getBoundingClientRect();
+    const x=e.touches?e.touches[0].clientX:e.clientX;
+    targetX=x-r.left;
+  };
+  canvas.addEventListener('mousedown',onTouch);
+  canvas.addEventListener('touchstart',onTouch,{passive:true});
+  canvas.addEventListener('mousemove',(e)=>{if(e.buttons===1)onTouch(e);});
+  function update(){
+    if(gameOver)return;
+    if(keys['ArrowLeft']||keys['KeyA'])ship.x-=5;
+    if(keys['ArrowRight']||keys['KeyD'])ship.x+=5;
+    if(targetX!==null){ship.x+=(targetX-ship.x)*0.2;}
+    ship.x=Math.max(ship.w/2,Math.min(W()-ship.w/2,ship.x));
+    spawnTimer++;
+    if(spawnTimer%25===0)asteroids.push({x:Math.random()*W(),y:-30,r:12+Math.random()*15,vy:2+Math.random()*2,vx:(Math.random()-0.5)*1});
+    if(spawnTimer%40===0&&Math.random()<0.5)crystals.push({x:Math.random()*W(),y:-20,r:8,vy:2});
+    asteroids.forEach(a=>{a.x+=a.vx;a.y+=a.vy;});
+    crystals.forEach(c=>{c.y+=c.vy;});
+    asteroids=asteroids.filter(a=>a.y<H()+50);
+    crystals=crystals.filter(c=>c.y<H()+50&&!c.collected);
+    asteroids.forEach(a=>{
+      if(Math.abs(a.x-ship.x)<ship.w/2+a.r&&Math.abs(a.y-ship.y)<ship.h/2+a.r){gameOver=true;Sound.error();}
+    });
+    crystals.forEach(c=>{
+      if(Math.abs(c.x-ship.x)<ship.w/2+c.r&&Math.abs(c.y-ship.y)<ship.h/2+c.r){
+        c.collected=true;score+=10;
+        const s=document.getElementById('space-score');if(s)s.textContent=score;
+        Sound.tone(1200,0.1,'sine',0.08);
+      }
+    });
+  }
+  function draw(){
+    ctx.fillStyle='#05051a';ctx.fillRect(0,0,W(),H());
+    ctx.fillStyle='#fff';
+    for(let i=0;i<50;i++){
+      const sx=(i*137+Date.now()/50*(i%3+1))%W();
+      const sy=(i*89+Date.now()/20)%H();
+      ctx.globalAlpha=0.3+Math.sin(i+Date.now()/500)*0.3;
+      ctx.fillRect(sx,sy,2,2);
+    }
+    ctx.globalAlpha=1;
+    asteroids.forEach(a=>{
+      ctx.fillStyle='#8b7355';ctx.beginPath();ctx.arc(a.x,a.y,a.r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#5c4033';
+      ctx.beginPath();ctx.arc(a.x-a.r/3,a.y-a.r/3,a.r/3,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(a.x+a.r/4,a.y+a.r/4,a.r/4,0,Math.PI*2);ctx.fill();
+    });
+    crystals.forEach(c=>{
+      ctx.fillStyle='#00ffff';ctx.beginPath();
+      ctx.moveTo(c.x,c.y-c.r);ctx.lineTo(c.x+c.r*0.6,c.y);ctx.lineTo(c.x,c.y+c.r);
+      ctx.lineTo(c.x-c.r*0.6,c.y);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#a0ffff';ctx.beginPath();
+      ctx.moveTo(c.x,c.y-c.r);ctx.lineTo(c.x+c.r*0.3,c.y);ctx.lineTo(c.x-c.r*0.3,c.y);ctx.closePath();ctx.fill();
+    });
+    if(!gameOver){
+      ctx.save();ctx.translate(ship.x,ship.y);
+      ctx.fillStyle='#ff6b00';ctx.beginPath();
+      const flicker=Math.random()*10;
+      ctx.moveTo(-8,ship.h/2);ctx.lineTo(0,ship.h/2+15+flicker);ctx.lineTo(8,ship.h/2);ctx.fill();
+      ctx.fillStyle='#ffd93d';ctx.beginPath();
+      ctx.moveTo(-4,ship.h/2);ctx.lineTo(0,ship.h/2+8+flicker*0.5);ctx.lineTo(4,ship.h/2);ctx.fill();
+      ctx.fillStyle='#0a84ff';ctx.beginPath();
+      ctx.moveTo(0,-ship.h/2);ctx.lineTo(ship.w/2,ship.h/2);ctx.lineTo(-ship.w/2,ship.h/2);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#0060df';ctx.beginPath();
+      ctx.moveTo(0,-ship.h/2);ctx.lineTo(0,ship.h/2);ctx.lineTo(-ship.w/2,ship.h/2);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#00d4ff';ctx.beginPath();ctx.arc(0,0,6,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+    if(gameOver){
+      ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W(),H());
+      ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.font='bold 32px sans-serif';ctx.fillText('Game Over',W()/2,H()/2-20);
+      ctx.font='18px sans-serif';ctx.fillText('Счёт: '+score,W()/2,H()/2+20);
+      ctx.fillStyle='#00d4ff';ctx.font='14px sans-serif';
+      ctx.fillText('Тапните чтобы играть снова',W()/2,H()/2+55);
+    }
+  }
+  canvas.addEventListener('click',()=>{if(gameOver)reset();});
+  function loop(){update();draw();gameLoop=requestAnimationFrame(loop);}
+  reset();loop();
+  gameCleanup=()=>{
+    document.removeEventListener('keydown',onKey);
+    document.removeEventListener('keyup',onKey);
+  };
+}
+
+function render2048(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#faf8ef">
+    <div class="app-header" style="background:#faf8ef;border-bottom:1px solid #d0c8b8">
+      <button class="app-back" data-action="close-app" style="color:#776e65">‹</button>
+      <div class="title" style="color:#776e65">2048</div>
+      <div class="app-actions" style="color:#776e65;font-size:14px">
+        <span id="p2048-score" style="display:inline-block;background:#bbada0;color:#fff;padding:4px 10px;border-radius:6px;font-size:13px">0</span>
+      </div>
+    </div>
+    <div class="app-content" style="overflow:hidden;background:#faf8ef;display:flex;flex-direction:column;align-items:center;justify-content:center">
+      <div id="p2048-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#bbada0;padding:10px;border-radius:10px;width:330px;height:330px"></div>
+      <div style="margin-top:20px;font-size:13px;color:#776e65;text-align:center;padding:0 20px">Используйте стрелки для перемещения плиток</div>
+      <button data-action="p2048-reset" style="margin-top:20px;padding:12px 30px;background:#8f7a66;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer">Новая игра</button>
+    </div></div>`;
+}
+function setup2048(){
+  const grid=document.getElementById('p2048-grid');if(!grid)return;
+  const COLORS={0:'#cdc1b4',2:'#eee4da',4:'#ede0c8',8:'#f2b179',16:'#f59563',32:'#f67c5f',64:'#f65e3b',128:'#edcf72',256:'#edcc61',512:'#edc850',1024:'#edc53f',2048:'#edc22e'};
+  const TEXT_COLORS={0:'#776e65',2:'#776e65',4:'#776e65'};
+  let board,score;
+  function init(){
+    board=Array(4).fill(0).map(()=>Array(4).fill(0));
+    score=0;addTile();addTile();render();
+  }
+  function addTile(){
+    const empty=[];
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++)if(!board[r][c])empty.push([r,c]);
+    if(!empty.length)return;
+    const [r,c]=empty[Math.floor(Math.random()*empty.length)];
+    board[r][c]=Math.random()<0.9?2:4;
+  }
+  function render(){
+    grid.innerHTML='';
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+      const v=board[r][c];
+      const div=document.createElement('div');
+      div.style.cssText=`background:${COLORS[v]||'#3c3a32'};color:${TEXT_COLORS[v]||'#f9f6f2'};display:flex;align-items:center;justify-content:center;font-size:${v>=1000?'22':v>=100?'28':'36'}px;font-weight:700;border-radius:6px;transition:all .15s`;
+      div.textContent=v||'';
+      grid.appendChild(div);
+    }
+    const s=document.getElementById('p2048-score');if(s)s.textContent=score;
+  }
+  function move(dir){
+    const old=JSON.stringify(board);
+    let moved=false;
+    const rotate=(b)=>{const n=Array(4).fill(0).map(()=>Array(4).fill(0));for(let r=0;r<4;r++)for(let c=0;c<4;c++)n[c][3-r]=b[r][c];return n;};
+    const times=dir==='up'?3:dir==='right'?2:dir==='down'?1:0;
+    for(let i=0;i<times;i++)board=rotate(board);
+    for(let r=0;r<4;r++){
+      let row=board[r].filter(v=>v);
+      for(let i=0;i<row.length-1;i++)if(row[i]===row[i+1]){row[i]*=2;score+=row[i];row.splice(i+1,1);}
+      while(row.length<4)row.push(0);
+      board[r]=row;
+    }
+    for(let i=0;i<(4-times)%4;i++)board=rotate(board);
+    if(JSON.stringify(board)!==old){addTile();moved=true;Sound.tap();}
+    render();
+  }
+  const onKey=(e)=>{
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code)){
+      e.preventDefault();
+      if(e.code==='ArrowLeft')move('left');
+      if(e.code==='ArrowRight')move('right');
+      if(e.code==='ArrowUp')move('up');
+      if(e.code==='ArrowDown')move('down');
+    }
+  };
+  document.addEventListener('keydown',onKey);
+  let touchStart=null;
+  const onTouchStart=(e)=>{touchStart={x:e.touches[0].clientX,y:e.touches[0].clientY};};
+  const onTouchEnd=(e)=>{
+    if(!touchStart)return;
+    const dx=e.changedTouches[0].clientX-touchStart.x;
+    const dy=e.changedTouches[0].clientY-touchStart.y;
+    if(Math.abs(dx)>Math.abs(dy)){if(dx>30)move('right');else if(dx<-30)move('left');}
+    else{if(dy>30)move('down');else if(dy<-30)move('up');}
+    touchStart=null;
+  };
+  grid.addEventListener('touchstart',onTouchStart,{passive:true});
+  grid.addEventListener('touchend',onTouchEnd);
+  init();
+  gameCleanup=()=>{document.removeEventListener('keydown',onKey);};
+}
+
+function renderRacing(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Racing X</div><div class="app-actions"></div></div>
+    <div class="app-content" style="position:relative;overflow:hidden">
+      <div class="game-wrap"><canvas id="race-canvas" class="game-canvas"></canvas>
+        <div class="game-hud"><span id="race-score">0 м</span><span>🏎️</span></div>
+        <div class="game-hint">Стрелки / тап</div>
+      </div>
+    </div></div>`;
+}
+function setupRacing(){
+  const canvas=document.getElementById('race-canvas');if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const resize=()=>{canvas.width=canvas.clientWidth;canvas.height=canvas.clientHeight;};resize();
+  const W=()=>canvas.width,H=()=>canvas.height;
+  let player,obstacles,dist,speed,gameOver,spawnTimer;
+  function reset(){
+    player={x:W()/2,y:H()-120,w:44,h:80};
+    obstacles=[];dist=0;speed=3;gameOver=false;spawnTimer=0;
+    const s=document.getElementById('race-score');if(s)s.textContent='0 м';
+  }
+  const keys={};
+  const onKey=(e)=>{keys[e.code]=e.type==='keydown';if(['ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();};
+  document.addEventListener('keydown',onKey);
+  document.addEventListener('keyup',onKey);
+  let targetX=null;
+  const onTouch=(e)=>{
+    const r=canvas.getBoundingClientRect();
+    const x=e.touches?e.touches[0].clientX:e.clientX;
+    targetX=x-r.left;
+  };
+  canvas.addEventListener('mousedown',onTouch);
+  canvas.addEventListener('touchstart',onTouch,{passive:true});
+  canvas.addEventListener('mousemove',(e)=>{if(e.buttons===1)onTouch(e);});
+  function update(){
+    if(gameOver)return;
+    if(keys['ArrowLeft']||keys['KeyA'])player.x-=5;
+    if(keys['ArrowRight']||keys['KeyD'])player.x+=5;
+    if(targetX!==null)player.x+=(targetX-player.x)*0.2;
+    player.x=Math.max(50,Math.min(W()-50,player.x));
+    speed=3+dist*0.002;
+    spawnTimer++;
+    if(spawnTimer%40===0)obstacles.push({x:50+Math.random()*(W()-100),y:-100,w:44,h:80,vy:speed*1.2,color:`hsl(${Math.random()*360},60%,50%)`});
+    obstacles.forEach(o=>o.y+=o.vy);
+    obstacles=obstacles.filter(o=>o.y<H()+50);
+    dist+=Math.floor(speed);
+    const s=document.getElementById('race-score');if(s)s.textContent=Math.floor(dist/10)+' м';
+    obstacles.forEach(o=>{
+      if(Math.abs(o.x-player.x)<(o.w+player.w)/2-10&&Math.abs(o.y-player.y)<(o.h+player.h)/2-15){gameOver=true;Sound.error();}
+    });
+  }
+  function draw(){
+    ctx.fillStyle='#2d2d2d';ctx.fillRect(0,0,W(),H());
+    ctx.fillStyle='#4a4a4a';ctx.fillRect(0,0,30,H());ctx.fillRect(W()-30,0,30,H());
+    ctx.strokeStyle='#ffd93d';ctx.lineWidth=4;ctx.setLineDash([20,20]);
+    for(let x=W()/3;x<W();x+=W()/3){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H());ctx.stroke();}
+    ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=2;
+    for(let i=0;i<20;i++){
+      const y=((i*60+Date.now()/3*speed)%(H()+100));
+      const x=(i*137)%W();
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+30);ctx.stroke();
+    }
+    obstacles.forEach(o=>{
+      ctx.save();ctx.translate(o.x,o.y);
+      ctx.fillStyle=o.color;ctx.fillRect(-o.w/2,-o.h/2,o.w,o.h);
+      ctx.fillStyle='#222';ctx.fillRect(-o.w/2+6,-o.h/2+15,o.w-12,o.h-30);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(-o.w/2,-o.h/2,6,10);ctx.fillRect(o.w/2-6,-o.h/2,6,10);
+      ctx.fillRect(-o.w/2,o.h/2-10,6,10);ctx.fillRect(o.w/2-6,o.h/2-10,6,10);
+      ctx.restore();
+    });
+    if(!gameOver){
+      ctx.save();ctx.translate(player.x,player.y);
+      ctx.fillStyle='#e52521';ctx.fillRect(-player.w/2,-player.h/2,player.w,player.h);
+      ctx.fillStyle='#0a84ff';ctx.fillRect(-player.w/2+6,-player.h/2+12,player.w-12,player.h-24);
+      ctx.fillStyle='#fff';
+      ctx.fillRect(-player.w/2,-player.h/2,6,12);ctx.fillRect(player.w/2-6,-player.h/2,6,12);
+      ctx.fillRect(-player.w/2,player.h/2-12,6,12);ctx.fillRect(player.w/2-6,player.h/2-12,6,12);
+      ctx.fillStyle='#ffe066';
+      ctx.fillRect(-player.w/2+4,-player.h/2-6,10,6);ctx.fillRect(player.w/2-14,-player.h/2-6,10,6);
+      ctx.restore();
+    }
+    if(gameOver){
+      ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W(),H());
+      ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.font='bold 32px sans-serif';ctx.fillText('Crash!',W()/2,H()/2-20);
+      ctx.font='18px sans-serif';ctx.fillText('Дистанция: '+Math.floor(dist/10)+' м',W()/2,H()/2+20);
+      ctx.fillStyle='#ffd93d';ctx.font='14px sans-serif';
+      ctx.fillText('Тапните чтобы перезапустить',W()/2,H()/2+55);
+    }
+  }
+  canvas.addEventListener('click',()=>{if(gameOver)reset();});
+  function loop(){update();draw();gameLoop=requestAnimationFrame(loop);}
+  reset();loop();
+  gameCleanup=()=>{
+    document.removeEventListener('keydown',onKey);
+    document.removeEventListener('keyup',onKey);
+  };
+}
+
+function renderPhotoPro(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Photo Pro</div><div class="app-actions"></div></div>
+    <div class="app-content">
+      <div style="padding:20px">
+        <div id="pp-preview" style="width:100%;aspect-ratio:1;border-radius:16px;background:${PHOTOS[0]};margin-bottom:20px;display:flex;align-items:center;justify-content:center;font-size:60px;transition:all .3s">🖼️</div>
+        <h4 style="margin-bottom:12px;font-size:15px;font-weight:600">Фильтры</h4>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px" id="pp-filters">
+          ${PHOTOS.slice(0,8).map((bg,i)=>`<div class="pp-filter" style="aspect-ratio:1;border-radius:10px;background:${bg};cursor:pointer;border:2px solid transparent;transition:all .2s" data-action="pp-filter" data-bg="${bg}"></div>`).join('')}
+        </div>
+      </div>
+    </div></div>`;
+}
+
+function renderWeatherLive(){return renderWeather();}
+
+function renderMusicPro(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">Music Pro</div><div class="app-actions"></div></div>
+    <div class="app-content" style="padding:24px">
+      <div style="text-align:center;margin-bottom:30px">
+        <div style="font-size:80px;margin-bottom:16px">🎧</div>
+        <h2 style="font-size:24px;font-weight:700;margin-bottom:8px">Music Pro</h2>
+        <p style="color:#8e8e93;font-size:14px">Премиум музыка без рекламы</p>
+      </div>
+      <div style="background:#1c1c1e;border-radius:16px;padding:20px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span>Музыка без рекламы</span><span style="color:#30d158">✓</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span>Офлайн режим</span><span style="color:#30d158">✓</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px"><span>Безлимитные пропуски</span><span style="color:#30d158">✓</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Высокое качество</span><span style="color:#30d158">✓</span></div>
+      </div>
+      <button data-action="open-app-music" style="width:100%;background:#0a84ff;color:#fff;border:none;padding:16px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:12px">Открыть плеер</button>
+      <button data-action="music-pro-sub" style="width:100%;background:rgba(255,255,255,.1);color:#fff;border:none;padding:16px;border-radius:14px;font-size:16px;font-weight:600;cursor:pointer">Оформить подписку</button>
+    </div></div>`;
+}
+
+function renderCloudbox(){
+  const files=[
+    {name:'Отчёт 2024.docx',size:'2.4 MB',icon:'📄'},
+    {name:'Фото отпуск.jpg',size:'5.1 MB',icon:'🖼️'},
+    {name:'Проект.zip',size:'124 MB',icon:'📦'},
+    {name:'Музыка.mp3',size:'8.7 MB',icon:'🎵'},
+    {name:'Видео.mp4',size:'340 MB',icon:'🎬'},
+    {name:'Заметки.txt',size:'12 KB',icon:'📝'},
+  ];
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">CloudBox</div><div class="app-actions"></div></div>
+    <div class="app-content" style="padding:20px">
+      <div style="background:linear-gradient(135deg,#74b9ff,#0984e3);padding:20px;border-radius:16px;margin-bottom:20px">
+        <div style="font-size:13px;opacity:.9;margin-bottom:6px">Использовано</div>
+        <div style="font-size:26px;font-weight:700;margin-bottom:10px">12.4 GB / 1 TB</div>
+        <div style="height:8px;background:rgba(255,255,255,.2);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:15%;background:#fff;border-radius:4px"></div>
+        </div>
+      </div>
+      <h4 style="font-size:15px;font-weight:600;margin-bottom:12px">Файлы</h4>
+      ${files.map(f=>`<div style="display:flex;align-items:center;padding:12px;background:rgba(255,255,255,.05);border-radius:10px;margin-bottom:8px">
+        <span style="font-size:24px;margin-right:12px">${f.icon}</span>
+        <div style="flex:1"><div style="font-size:14px;font-weight:500">${f.name}</div>
+        <div style="font-size:11px;color:#8e8e93">${f.size}</div></div>
+        <button style="background:none;border:none;color:#0a84ff;font-size:18px;cursor:pointer">⬇</button>
+      </div>`).join('')}
+      <button data-action="cloudbox-sub" style="width:100%;background:#0a84ff;color:#fff;border:none;padding:14px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px">Оформить премиум (1 ТБ)</button>
+    </div></div>`;
+}
+
+let vpnOn=false;
+function renderVpn(){
+  return `<div class="app-view-inner" style="display:flex;flex-direction:column;height:100%;background:#000">
+    <div class="app-header"><button class="app-back" data-action="close-app">‹</button>
+      <div class="title">VPN Shield</div><div class="app-actions"></div></div>
+    <div class="app-content" style="padding:40px 24px;display:flex;flex-direction:column;align-items:center">
+      <div style="font-size:80px;margin-bottom:20px;transition:all .5s;${vpnOn?'filter:drop-shadow(0 0 20px #30d158)':''}">🛡️</div>
+      <div style="font-size:24px;font-weight:700;margin-bottom:8px">${vpnOn?'Защищено':'Не защищено'}</div>
+      <div style="color:#8e8e93;font-size:14px;margin-bottom:40px">${vpnOn?'Ваш IP скрыт':'Нажмите чтобы включить'}</div>
+      <button data-action="vpn-toggle" style="width:120px;height:120px;border-radius:50%;border:4px solid ${vpnOn?'#30d158':'#ff3b30'};background:${vpnOn?'rgba(48,209,88,.2)':'rgba(255,59,48,.2)'};color:#fff;font-size:18px;font-weight:700;cursor:pointer;transition:all .3s">
+        ${vpnOn?'ON':'OFF'}
+      </button>
+      <div style="margin-top:40px;width:100%;background:#1c1c1e;border-radius:14px;padding:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:#8e8e93;font-size:13px">Локация</span><span>🇳🇱 Нидерланды</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:#8e8e93;font-size:13px">Протокол</span><span>WireGuard</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:#8e8e93;font-size:13px">Скорость</span><span>85 Мбит/с</span></div>
+      </div>
+      <button data-action="vpn-sub" style="width:100%;background:#0a84ff;color:#fff;border:none;padding:14px;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:20px">Оформить премиум</button>
+    </div></div>`;
+}
+
+/* ===== PURCHASE ===== */
+function buyApp(appId,btn){
+  const app=CATALOG.find(a=>a.id===appId);
+  if(!app||State.purchased[appId])return;
+  if(State.balance<app.price){Sound.error();showToast('Недостаточно средств','error');return;}
+  if(btn)btn.classList.add('loading');
+  setTimeout(()=>{
+    State.balance-=app.price;State.purchased[appId]=true;
+    if(!State.installed.includes(appId))State.installed.push(appId);
+    saveState();Sound.purchase();
+    if(btn){
+      btn.classList.remove('loading');
+      if(btn.classList.contains('as-buy-btn-large')){
+        btn.classList.add('purchased');btn.innerHTML='<span class="btn-content">Открыть</span>';
+        btn.dataset.action='open-purchased';
+      } else {btn.classList.add('purchased');btn.textContent='✓';btn.disabled=true;}
+    }
+    showToast(`✓ ${app.name} куплено`,'success');
+    const bal=appViewEl.querySelector('.as-balance');
+    if(bal)bal.textContent=`💰 $${State.balance.toFixed(2)}`;
+    renderHomeScreen();
+  },700);
+}
+
+let pendingSubApp=null,selectedSubPlan=null;
+function openSubModal(appId){
+  const app=CATALOG.find(a=>a.id===appId);
+  if(!app||!app.subscription)return;
+  pendingSubApp=app;selectedSubPlan=app.plans.find(p=>p.best)||app.plans[0];
+  const modal=document.createElement('div');
+  modal.className='sub-modal active';modal.id='sub-modal';
+  let plansHtml='';
+  app.plans.forEach(p=>{
+    plansHtml+=`<div class="sub-plan ${p.id===selectedSubPlan.id?'selected':''}" data-action="sub-select" data-plan="${p.id}">
+      <div class="radio"></div>
+      <div class="sub-plan-info">
+        <div class="sub-plan-name">${p.name}</div>
+        <div class="sub-plan-price">${formatPrice(p.price)}</div>
+      </div>${p.best?'<span class="best-badge">Выгодно</span>':''}</div>`;
+  });
+  modal.innerHTML=`<div class="sub-modal-inner">
+    <h3>${escapeHtml(app.name)}</h3>
+    <div class="sub-desc">Выберите план подписки</div>${plansHtml}
+    <div class="sub-actions">
+      <button class="cancel" data-action="sub-cancel">Отмена</button>
+      <button class="confirm" data-action="sub-confirm">Подписаться</button>
+    </div></div>`;
+  const host=appViewEl.querySelector('.app-view-inner')||appViewEl;
+  host.style.position='relative';host.appendChild(modal);
+  Sound.tap();
+}
+function closeSubModal(){
+  const m=document.getElementById('sub-modal');if(m)m.remove();
+  pendingSubApp=null;selectedSubPlan=null;
+}
+function selectSubPlan(planId){
+  if(!pendingSubApp)return;
+  selectedSubPlan=pendingSubApp.plans.find(p=>p.id===planId);
+  document.querySelectorAll('.sub-plan').forEach(el=>{el.classList.toggle('selected',el.dataset.plan===planId);});
+  Sound.tap();
+}
+function confirmSub(){
+  if(!pendingSubApp||!selectedSubPlan)return;
+  const app=pendingSubApp,plan=selectedSubPlan;
+  if(State.balance<plan.price){Sound.error();showToast('Недостаточно средств','error');return;}
+  State.balance-=plan.price;State.subscriptions[app.id]=plan.id;
+  if(!State.installed.includes(app.id))State.installed.push(app.id);
+  saveState();Sound.purchase();closeSubModal();
+  showToast(`✓ Подписка оформлена`,'success');
+  renderHomeScreen();
+  const bal=appViewEl.querySelector('.as-balance');
+  if(bal)bal.textContent=`💰 $${State.balance.toFixed(2)}`;
+  if(State.currentApp==='appstore'){appViewEl.innerHTML=renderAppStore();}
+  else if(State.currentApp===app.id){appViewEl.innerHTML=renderApp(app.id);setupApp(app.id);}
+}
+
+/* ===== EVENT DELEGATION ===== */
+screenEl.addEventListener('click',(e)=>{
+  if(State.locked&&(e.target.closest('#lock-screen')||lockEl.contains(e.target))){unlockScreen();return;}
+  const actionEl=e.target.closest('[data-action]');
+  if(!actionEl){
+    if(e.target.id==='home-indicator'&&State.currentApp)closeApp();
+    return;
+  }
+  const action=actionEl.dataset.action;
+  switch(action){
+    case 'open-app': e.stopPropagation(); openApp(actionEl.dataset.app); break;
+    case 'close-app': closeApp(); break;
+    case 'appstore-home': appViewEl.innerHTML=renderAppStore(); Sound.tap(); break;
+    case 'app-detail': e.stopPropagation(); appViewEl.innerHTML=renderAppStoreDetail(actionEl.dataset.app); Sound.tap(); break;
+    case 'buy-app': e.stopPropagation(); buyApp(actionEl.dataset.app,actionEl); break;
+    case 'open-purchased':
+      e.stopPropagation();
+      if(State.purchased[actionEl.dataset.app]||State.subscriptions[actionEl.dataset.app]){
+        const id=actionEl.dataset.app;
+        if(!State.installed.includes(id))State.installed.push(id);
+        saveState();openApp(id);
+      }
+      break;
+    case 'open-sub': e.stopPropagation(); openSubModal(actionEl.dataset.app); break;
+    case 'sub-select': selectSubPlan(actionEl.dataset.plan); break;
+    case 'sub-cancel': closeSubModal(); break;
+    case 'sub-confirm': confirmSub(); break;
+    case 'calc': calcInput(actionEl.dataset.val); break;
+    case 'note-new': appViewEl.innerHTML=renderNotes('new'); Sound.tap(); break;
+    case 'note-open': appViewEl.innerHTML=renderNotes(actionEl.dataset.note); Sound.tap(); break;
+    case 'note-delete':
+      e.stopPropagation();
+      State.notes=State.notes.filter(n=>n.id!==actionEl.dataset.note);
+      saveState();Sound.tap();appViewEl.innerHTML=renderNotes();
+      break;
+    case 'note-save': saveNote(actionEl.dataset.note); break;
+    case 'notes-list': appViewEl.innerHTML=renderNotes(); Sound.tap(); break;
+    case 'music-toggle': toggleMusic(); break;
+    case 'music-next': nextTrack(); break;
+    case 'music-prev': prevTrack(); break;
+    case 'music-track':
+      musicState.trackIdx=parseInt(actionEl.dataset.idx,10);
+      musicState.elapsed=0;musicState.dur=TRACKS[musicState.trackIdx].dur;
+      const wasPlaying=musicState.playing;
+      MusicPlayer.stop();
+      if(musicState.timer){clearInterval(musicState.timer);musicState.timer=null;}
+      musicState.playing=false;
+      appViewEl.innerHTML=renderMusic();
+      Sound.tap();
+      setTimeout(()=>{if(wasPlaying)toggleMusic();},50);
+      break;
+    case 'camera-shutter': cameraShutter(); break;
+    case 'camera-photos': Sound.tap(); appViewEl.innerHTML=renderPhotos(); break;
+    case 'camera-flip': Sound.tap(); showToast('Камера переключена'); break;
+    case 'photo-view': Sound.tap(); break;
+    case 'reset':
+      if(confirm('Сбросить все данные?')){localStorage.removeItem('phoneSim_v2');location.reload();}
+      break;
+    case 'open-app-music': appViewEl.innerHTML=renderMusic();setupApp('music'); break;
+    case 'music-pro-sub': openSubModal('music-pro'); break;
+    case 'cloudbox-sub': openSubModal('cloudbox'); break;
+    case 'vpn-sub': openSubModal('vpn-shield'); break;
+    case 'vpn-toggle': vpnOn=!vpnOn;Sound.tap();appViewEl.innerHTML=renderVpn(); break;
+    case 'pp-filter':
+      const preview=document.getElementById('pp-preview');
+      if(preview)preview.style.background=actionEl.dataset.bg;
+      document.querySelectorAll('.pp-filter').forEach(el=>el.style.borderColor='transparent');
+      actionEl.style.borderColor='#fff';
+      Sound.tap();
+      break;
+    case 'p2048-reset': {
+      const p=window.__p2048reset; if(p)p();
+      break;
+    }
+  }
+});
+
+$('#home-indicator').addEventListener('click',()=>{if(State.currentApp)closeApp();});
+
+/* ===== ANDROID NAV HANDLER ===== */
+document.getElementById('android-nav').addEventListener('click',(e)=>{
+  const btn=e.target.closest('button[data-nav]');
+  if(!btn)return;
+  e.stopPropagation();
+  Sound.tap();
+  const nav=btn.dataset.nav;
+  if(nav==='home'||nav==='back'){
+    if(State.currentApp)closeApp();
+  } else if(nav==='recents'){
+    showToast('Нет недавних приложений');
+  }
+});
+
+$('#model-select').addEventListener('change',(e)=>{
+  State.model=e.target.value;
+  phoneEl.classList.toggle('android',State.model==='android');
+  saveState();Sound.tap();
+});
+
+/* ===== INIT ===== */
+function init(){
+  phoneEl.classList.toggle('android',State.model==='android');
+  $('#model-select').value=State.model;
+  renderHomeScreen();
+  screenEl.addEventListener('contextmenu',e=>e.preventDefault());
+  document.addEventListener('keydown',(e)=>{
+    if(e.key==='Escape'&&State.currentApp)closeApp();
+  });
+}
+init();
+</script>
+</body>
+</html>
